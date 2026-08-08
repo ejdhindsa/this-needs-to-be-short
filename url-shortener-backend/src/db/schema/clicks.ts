@@ -1,5 +1,5 @@
 import * as p from "drizzle-orm/pg-core";
-import { link } from "./link";
+import { link } from "./link.js";
 
 export const clicks = p.pgTable("clicks", {
   clickId: p.uuid("click_id").defaultRandom().primaryKey().notNull(),

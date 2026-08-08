@@ -5,8 +5,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "tsc --outDir dist",
     "test": "vitest",
-    "dev": "tsx watch src/server.ts"
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/src/server.js"
   },
   "keywords": [],
   "author": "",
