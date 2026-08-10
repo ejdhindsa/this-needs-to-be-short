@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc --outDir dist",
-    "test": "vitest",
+    "test": "vitest run --no-file-parallelism",
     "dev": "tsx watch src/server.ts",
     "start": "node dist/src/server.js",
     "db:push": "drizzle-kit push",

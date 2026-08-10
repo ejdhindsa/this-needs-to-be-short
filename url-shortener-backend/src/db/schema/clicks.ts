@@ -9,7 +9,7 @@ export const clicks = p.pgTable("clicks", {
     .notNull(),
   linkId: p
     .uuid("link_id")
-    .references(() => link.sid)
+    .references(() => link.sid, { onDelete: "cascade" })
     .notNull(),
   referrer: p.varchar(),
   clickedAt: p.timestamp("clicked_at").defaultNow().notNull(),
