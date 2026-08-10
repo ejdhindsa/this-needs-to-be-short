@@ -1,10 +1,32 @@
 services:
   db:
     image: postgres:16
+    container_name: shortener_db
     restart: always
-    ports:
-      - "5432:5432"
     environment:
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_USER=admin
-      - POSTGRES_DB=shortener_db
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - shortener_pg_data:/var/lib/postgresql/data
+
+  shortener:
+    build: .
+    container_name: shortener_app
+    restart: unless-stopped
+    expose:
+      - "3000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+    networks:
+      - default
+      - edge
+
+volumes:
+  shortener_pg_data:
+
+networks:
+  edge:
+    external: true
