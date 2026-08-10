@@ -6,12 +6,15 @@ import { eq } from "drizzle-orm";
 import { clicks } from "../db/schema/clicks.js";
 
 let testId: string;
+let testCode: string;
 
 beforeAll(async () => {
+  testCode = `test_${crypto.randomUUID().slice(0, 8)}`;
+
   const [insertedLink] = await db
     .insert(link)
     .values({
-      shortCode: "test-code",
+      shortCode: testCode,
       originalURL: "https://ekamjot.me",
     })
     .returning();
@@ -41,7 +44,7 @@ describe("Test redirect() file", () => {
   it("should redirect to the original link when the short code exists", async () => {
     const response = await app.inject({
       method: "GET",
-      url: "/redirect/test-code",
+      url: `/redirect/${testCode}`,
     });
 
     expect(response.statusCode).toEqual(302);
