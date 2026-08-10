@@ -1,8 +1,8 @@
 import { type FastifyInstance } from "fastify";
 import { db } from "../db/index.js";
-import crypto from "node:crypto";
 import { ShortenSchema } from "../validators/shorten.validator.js";
 import { link } from "../db/schema/link.js";
+import randomCodeGenerator from "../utils/randomCodeGenerator.js";
 
 export async function shortenRoutes(fastify: FastifyInstance) {
   fastify.post("/shorten", async (request, reply) => {
@@ -11,7 +11,7 @@ export async function shortenRoutes(fastify: FastifyInstance) {
       return reply.status(400).send(result.error.issues);
     }
 
-    const queryString = crypto.randomBytes(4).toString("hex");
+    const queryString = randomCodeGenerator();
 
     // inserting the generated query url to the database
     const [insertedLink] = await db
