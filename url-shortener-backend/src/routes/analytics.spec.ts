@@ -75,7 +75,7 @@ describe("Test 'analytics' route", () => {
     const ResponseSchema = z.object({
       shortCode: z.string(),
       originalURL: z.string(),
-      linkType: z.string().nullable(),
+      linkType: z.string(),
       totalClicks: z.number(),
       clicks: z
         .array(
