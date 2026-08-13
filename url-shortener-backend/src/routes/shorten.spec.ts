@@ -4,6 +4,7 @@ import { db } from "../db/index.js";
 import { link } from "../db/schema/link.js";
 import { clicks } from "../db/schema/clicks.js";
 import randomCodeGenerator from "../utils/randomCodeGenerator.js";
+import { LinkType } from "../validators/shorten.validator.js";
 
 vi.mock("../utils/randomCodeGenerator.js", () => ({
   default: vi.fn(),
@@ -86,5 +87,50 @@ describe("Test shorten route", () => {
 
     expect(response.statusCode).toEqual(500);
     expect(body).toEqual({ error: "Unable to generate unique shortcode" });
+  });
+
+  it("should create a link with custom code", async () => {
+    const customCode = `forRogalDorn_${crypto.randomUUID().slice(0, 5)}`;
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/shorten",
+      payload: {
+        url: "https://www.ekamjot.me",
+        customCode,
+      },
+    });
+
+    expect(response.statusCode).toEqual(201);
+    const body = response.json();
+    expect(body.shortCode).toEqual(customCode);
+    expect(body.linkType).toEqual(LinkType.Custom);
+  });
+
+  it("should return 409 for duplicate custom code", async () => {
+    const customCode = `forTheEmperor01xxxx23`;
+
+    await app.inject({
+      method: "POST",
+      url: "/shorten",
+      payload: {
+        url: "https://www.google.com",
+        customCode,
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/shorten",
+      payload: {
+        url: "https://www.google.com",
+        customCode,
+      },
+    });
+
+    expect(response.statusCode).toEqual(409);
+    expect(response.json()).toEqual({
+      error: "The requested shortcode already exists in the database",
+    });
   });
 });
