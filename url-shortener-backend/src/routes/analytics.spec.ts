@@ -1,0 +1,99 @@
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { app } from "../app.js";
+import { db } from "../db/index.js";
+import { link } from "../db/schema/link.js";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
+
+let testId: string;
+let testCode: string;
+
+beforeAll(async () => {
+  testCode = `test_${crypto.randomUUID().slice(0, 8)}`;
+
+  const [insertedLink] = await db
+    .insert(link)
+    .values({
+      shortCode: testCode,
+      originalURL: "https://ekamjot.me",
+    })
+    .returning();
+
+  if (insertedLink) {
+    testId = insertedLink.sid;
+  }
+});
+
+afterAll(async () => {
+  if (testId) {
+    await db.delete(link).where(eq(link.sid, testId));
+  }
+});
+
+describe("Test 'analytics' route", () => {
+  it("should show an error if the link is not found", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "analytics/this-does-not-exist",
+    });
+
+    expect(response.statusCode).toEqual(404);
+  });
+
+  it("should return still return if there are no clicks on a link", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: `/analytics/${testCode}`,
+    });
+
+    expect(response.statusCode).toEqual(200);
+
+    const body = response.json();
+    expect(body.totalClicks).toEqual(0);
+    expect(body.clicks).toEqual([]);
+  });
+
+  it("should return the number of total clicks accurately", async () => {
+    await app.inject({
+      method: "GET",
+      url: `/redirect/${testCode}`,
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/analytics/${testCode}`,
+    });
+
+    expect(response.statusCode).toEqual(200);
+
+    const body = response.json();
+    expect(body.totalClicks).toEqual(1);
+    expect(body.clicks).not.toBe(null);
+  });
+
+  it("should preserve the shape of the returned json", async () => {
+    const ResponseSchema = z.object({
+      shortCode: z.string(),
+      originalURL: z.string(),
+      linkType: z.string().nullable(),
+      totalClicks: z.number(),
+      clicks: z
+        .array(
+          z.object({
+            clickId: z.string(),
+            referrer: z.string().nullable(),
+            clickedAt: z.coerce.date(),
+          }),
+        )
+        .nullable(),
+    });
+    const response = await app.inject({
+      method: "GET",
+      url: `/analytics/${testCode}`,
+    });
+
+    const body = response.json();
+    const result = ResponseSchema.safeParse(body);
+    expect(result.success).toBe(true);
+  });
+});
