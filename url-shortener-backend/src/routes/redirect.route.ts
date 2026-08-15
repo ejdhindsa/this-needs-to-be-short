@@ -14,18 +14,17 @@ export async function redirectRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const { shortCode } = request.params;
 
-      const redirectRow = await db
+      const [targetLink] = await db
         .select()
         .from(link)
-        .where(eq(link.shortCode, shortCode));
-
-      const targetLink = redirectRow[0];
+        .where(eq(link.shortCode, shortCode))
+        .limit(1);
 
       if (!targetLink) {
         return reply.code(404).send({ error: "Item not found! " });
       }
 
-      await db.insert(clicks).values({ linkId: targetLink.sid }).returning();
+      await db.insert(clicks).values({ linkId: targetLink.sid });
 
       return reply.code(302).redirect(targetLink.originalURL);
     },
