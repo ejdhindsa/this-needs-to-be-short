@@ -7,7 +7,6 @@ import { redirectRoutes } from "./routes/redirect.route.js";
 import { analyticsRoute } from "./routes/analytics.route.js";
 
 const isProduction = process.env.NODE_ENV === "production";
-const port = Number(process.env.PORT) || 3000;
 
 export const app = Fastify({
   trustProxy: true,
@@ -45,6 +44,7 @@ await app.register(fastifyCors, {
     "https://shortener.unwreck.dev",
     ...(isProduction ? [] : ["http://localhost:5173"]),
   ],
+  methods: ["GET", "POST"],
 });
 
 app.register(pingRoutes);

@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "description": "",
-  "main": "index.js",
+  "main": "dist/src/server.js",
   "scripts": {
+    "prebuild": "rm -rf dist",
     "build": "tsc --outDir dist",
     "test": "vitest run --no-file-parallelism",
     "dev": "tsx watch src/server.ts",

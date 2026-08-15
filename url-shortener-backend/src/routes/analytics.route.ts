@@ -14,8 +14,11 @@ export async function analyticsRoute(fastify: FastifyInstance) {
     "/analytics/:shortCode",
     async (request, reply) => {
       const { shortCode } = request.params;
-      const page = Number(request.query?.page) || 1;
-      const limit = Number(request.query?.limit) || 50;
+      const page = Math.max(Number(request.query?.page) || 1, 1);
+      const limit = Math.min(
+        Math.max(Number(request.query?.limit) || 50, 1),
+        100,
+      );
       const offset = (page - 1) * limit;
 
       try {

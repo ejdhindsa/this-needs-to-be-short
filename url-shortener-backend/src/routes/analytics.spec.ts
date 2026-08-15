@@ -113,4 +113,37 @@ describe("Test 'analytics' route", () => {
     expect(body.totalPages).toEqual(1);
     expect(Array.isArray(body.clicks)).toBe(true);
   });
+
+  it("should floor negative or zero page to 1", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: `/analytics/${testCode}?page=-5`,
+    });
+
+    expect(response.statusCode).toEqual(200);
+    const body = response.json();
+    expect(body.page).toEqual(1);
+  });
+
+  it("should cap limit to 100 when exceeding maximum", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: `/analytics/${testCode}?limit=500`,
+    });
+
+    expect(response.statusCode).toEqual(200);
+    const body = response.json();
+    expect(body.limit).toEqual(100);
+  });
+
+  it("should clamp limit to minimum of 1 when negative", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: `/analytics/${testCode}?limit=-10`,
+    });
+
+    expect(response.statusCode).toEqual(200);
+    const body = response.json();
+    expect(body.limit).toEqual(1);
+  });
 });
