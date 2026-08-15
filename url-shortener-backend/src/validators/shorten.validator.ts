@@ -23,10 +23,9 @@ export const ShortenSchema = z.object({
     .max(32, "Custom code must be at most 32 characters long")
     .regex(
       /^[a-zA-Z0-9_-]+$/,
-      "Custom code can only comtain letters, numbers, underscoresm, and hyphens",
+      "Custom code can only contain letters, numbers, underscores, and hyphens",
     )
     .optional(),
-  linkType: z.enum([LinkType.Normal, LinkType.Custom]).default(LinkType.Normal),
 });
 
 export type Shorten = z.infer<typeof ShortenSchema>;

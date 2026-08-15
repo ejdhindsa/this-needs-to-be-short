@@ -35,7 +35,7 @@ app.setNotFoundHandler(
     preHandler: app.rateLimit(),
   },
   function (_request, reply) {
-    reply.code(404).send({ error: "Too many requests, not found!" });
+    reply.code(404).send({ error: "Route not found" });
   },
 );
 

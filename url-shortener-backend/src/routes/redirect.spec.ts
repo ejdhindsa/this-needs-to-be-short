@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { app } from "../app.js";
 import { db } from "../db/index.js";
 import { link } from "../db/schema/link.js";
@@ -31,6 +31,10 @@ afterAll(async () => {
   }
 });
 
+beforeEach(async () => {
+  await db.delete(clicks).where(eq(clicks.linkId, testId));
+});
+
 describe("Test redirect() file", () => {
   it("should return 404 when no row exists", async () => {
     const response = await app.inject({
@@ -52,11 +56,45 @@ describe("Test redirect() file", () => {
   });
 
   it("should record the clicks in the clicks database", async () => {
+    await app.inject({
+      method: "GET",
+      url: `/redirect/${testCode}`,
+    });
+
     const recordedClicks = await db
       .select()
       .from(clicks)
       .where(eq(clicks.linkId, testId));
 
     expect(recordedClicks.length).toEqual(1);
+  });
+
+  it("should have a valid referrer header param in a link where the referrer is passed", async () => {
+    await app.inject({
+      method: "GET",
+      url: `/redirect/${testCode}`,
+      headers: { referer: "https://www.ekamjot.me" },
+    });
+
+    const recordedClicks = await db
+      .select()
+      .from(clicks)
+      .where(eq(clicks.linkId, testId));
+
+    expect(recordedClicks[0]?.referrer).toEqual("https://www.ekamjot.me");
+  });
+
+  it("should have the referrer as null when none is passed", async () => {
+    await app.inject({
+      method: "GET",
+      url: `/redirect/${testCode}`,
+    });
+
+    const recordedClicks = await db
+      .select()
+      .from(clicks)
+      .where(eq(clicks.linkId, testId));
+
+    expect(recordedClicks[0]?.referrer).toBeNull();
   });
 });

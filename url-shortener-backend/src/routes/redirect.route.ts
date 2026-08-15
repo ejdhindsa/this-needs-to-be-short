@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 
 interface RedirectRouteType {
   Params: { shortCode: string };
+  Headers: { referer?: string };
 }
 
 export async function redirectRoutes(fastify: FastifyInstance) {
@@ -13,6 +14,7 @@ export async function redirectRoutes(fastify: FastifyInstance) {
     "/redirect/:shortCode",
     async (request, reply) => {
       const { shortCode } = request.params;
+      const referer = request.headers?.referer || null;
 
       const [targetLink] = await db
         .select()
@@ -24,7 +26,9 @@ export async function redirectRoutes(fastify: FastifyInstance) {
         return reply.code(404).send({ error: "Item not found! " });
       }
 
-      await db.insert(clicks).values({ linkId: targetLink.sid });
+      await db
+        .insert(clicks)
+        .values({ linkId: targetLink.sid, referrer: referer });
 
       return reply.code(302).redirect(targetLink.originalURL);
     },
