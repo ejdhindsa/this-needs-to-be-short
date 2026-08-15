@@ -7,6 +7,7 @@ import { redirectRoutes } from "./routes/redirect.route.js";
 import { analyticsRoute } from "./routes/analytics.route.js";
 
 const isProduction = process.env.NODE_ENV === "production";
+const port = Number(process.env.PORT) || 3000;
 
 export const app = Fastify({
   trustProxy: true,
@@ -16,8 +17,8 @@ export const app = Fastify({
         transport: {
           target: "pino-pretty",
           options: {
-            translateTime: "HH:M:ss Z",
-            ignore: "oid,hostname",
+            translateTime: "HH:MM:ss Z",
+            ignore: "pid,hostname",
           },
         },
       },
