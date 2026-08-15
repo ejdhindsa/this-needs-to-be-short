@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { app } from "../app.js";
 import { db } from "../db/index.js";
 import { link } from "../db/schema/link.js";
@@ -9,6 +9,10 @@ import { LinkType } from "../validators/shorten.validator.js";
 vi.mock("../utils/randomCodeGenerator.js", () => ({
   default: vi.fn(),
 }));
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("Test shorten route", () => {
   beforeEach(async () => {
@@ -132,5 +136,92 @@ describe("Test shorten route", () => {
     expect(response.json()).toEqual({
       error: "The requested shortcode already exists in the database",
     });
+  });
+
+  it("should return 500 when the database server fails for normal codes", async () => {
+    const spy = vi.spyOn(db, "insert");
+
+    spy.mockImplementationOnce(() => {
+      throw new Error("Database Internal Failure");
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/shorten",
+      payload: {
+        url: "https://ekamjot.me",
+      },
+    });
+
+    expect(response.statusCode).toBe(500);
+
+    const body = response.json();
+    expect(body).toEqual({ error: "Internal Server Error" });
+  });
+
+  it("should return 500 when the database fails for custom codes", async () => {
+    const customCode = `forTheEmperor01xxxx24`;
+    const spy = vi.spyOn(db, "insert");
+
+    spy.mockImplementationOnce(() => {
+      throw new Error("Database Internal Failure");
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/shorten",
+      payload: {
+        url: "https://ekamjot.me",
+        customCode,
+      },
+    });
+
+    expect(response.statusCode).toBe(500);
+
+    const body = response.json();
+    expect(body).toEqual({ error: "Internal Server Error" });
+  });
+
+  it("should not accept links that do not start with http or https", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/shorten",
+      payload: { url: "www.ekamjot.me" },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it("should reject custom shortcode links that do not start with http or https", async () => {
+    const customCode = `forTheEmperor01xxxx25`;
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/shorten",
+      payload: {
+        url: "ekamjot.me",
+        customCode,
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it("should not accept links longer than 512 characters", async () => {
+    const longUrl =
+      "https://" +
+      Array.from({ length: 512 }, () =>
+        Math.random().toString(36).charAt(2),
+      ).join("");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/shorten",
+      payload: {
+        url: longUrl,
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
   });
 });

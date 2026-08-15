@@ -32,12 +32,13 @@ export async function shortenRoutes(fastify: FastifyInstance) {
         return reply.status(201).send(insertedLink);
       } catch (err: any) {
         if (err?.code === "23505" || err?.cause?.code === "23505") {
+          request.log.warn(err);
           return reply.status(409).send({
             error: "The requested shortcode already exists in the database",
           });
         }
-
-        return reply.status(500).send(err);
+        request.log.error(err);
+        return reply.status(500).send({ error: "Internal Server Error" });
       }
     } else {
       // inserting the generated query url to the database
@@ -60,7 +61,8 @@ export async function shortenRoutes(fastify: FastifyInstance) {
           if (err?.code === "23505" || err?.cause?.code === "23505") {
             continue;
           }
-          return reply.status(500).send(err);
+          request.log.error(err);
+          return reply.status(500).send({ error: "Internal Server Error" });
         }
       }
     }

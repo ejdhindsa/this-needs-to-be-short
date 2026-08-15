@@ -8,7 +8,15 @@ export const LinkType = {
 export type LinkTypeValues = (typeof LinkType)[keyof typeof LinkType];
 
 export const ShortenSchema = z.object({
-  url: z.url("Invalid URL format"),
+  url: z
+    .url({ error: "Invalid URL format" })
+    .max(512)
+    .refine(
+      (val: string) => val.startsWith("http://") || val.startsWith("https://"),
+      {
+        message: "URL must use HTTP or HTTPS protocol",
+      },
+    ),
   customCode: z
     .string()
     .min(3, "Custom code must be at least 3 characters long")

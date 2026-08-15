@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import fastifyRateLimit from "@fastify/rate-limit";
+import fastifyCors from "@fastify/cors";
 import { pingRoutes } from "./routes/ping.route.js";
 import { shortenRoutes } from "./routes/shorten.route.js";
 import { redirectRoutes } from "./routes/redirect.route.js";
@@ -8,6 +9,7 @@ import { analyticsRoute } from "./routes/analytics.route.js";
 const isProduction = process.env.NODE_ENV === "production";
 
 export const app = Fastify({
+  trustProxy: true,
   logger: isProduction
     ? true
     : {
@@ -36,6 +38,13 @@ app.setNotFoundHandler(
     reply.code(404).send({ error: "Too many requests, not found!" });
   },
 );
+
+await app.register(fastifyCors, {
+  origin: [
+    "https://shortener.unwreck.dev",
+    ...(isProduction ? [] : ["http://localhost:5173"]),
+  ],
+});
 
 app.register(pingRoutes);
 app.register(shortenRoutes);
