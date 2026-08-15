@@ -2,10 +2,11 @@ import type { FastifyInstance } from "fastify";
 import { db } from "../db/index.js";
 import { clicks } from "../db/schema/clicks.js";
 import { link } from "../db/schema/link.js";
-import { eq, desc } from "drizzle-orm";
+import { eq, count, desc } from "drizzle-orm";
 
 interface AnalyticsRouteType {
   Params: { shortCode: string };
+  Querystring: { page?: string; limit?: string };
 }
 
 export async function analyticsRoute(fastify: FastifyInstance) {
@@ -13,6 +14,9 @@ export async function analyticsRoute(fastify: FastifyInstance) {
     "/analytics/:shortCode",
     async (request, reply) => {
       const { shortCode } = request.params;
+      const page = Number(request.query?.page) || 1;
+      const limit = Number(request.query?.limit) || 50;
+      const offset = (page - 1) * limit;
 
       try {
         const [targetLink] = await db
@@ -27,6 +31,16 @@ export async function analyticsRoute(fastify: FastifyInstance) {
             .send({ error: "Requested link does not exist." });
         }
 
+        const [countResult] = await db
+          .select({
+            totalClicks: count(),
+          })
+          .from(clicks)
+          .where(eq(clicks.linkId, targetLink.sid));
+
+        const totalClicks = countResult?.totalClicks ?? 0;
+        const totalPages = Math.ceil(totalClicks / limit) || 1;
+
         const clickRecords = await db
           .select({
             clickId: clicks.clickId,
@@ -35,13 +49,18 @@ export async function analyticsRoute(fastify: FastifyInstance) {
           })
           .from(clicks)
           .where(eq(clicks.linkId, targetLink.sid))
-          .orderBy(desc(clicks.clickedAt));
+          .orderBy(desc(clicks.clickedAt))
+          .limit(limit)
+          .offset(offset);
 
         return reply.code(200).send({
           shortCode: targetLink.shortCode,
           originalURL: targetLink.originalURL,
           linkType: targetLink.linkType,
-          totalClicks: clickRecords.length,
+          totalClicks,
+          page,
+          limit,
+          totalPages,
           clicks: clickRecords,
         });
       } catch (error) {

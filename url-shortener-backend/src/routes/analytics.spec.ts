@@ -77,6 +77,9 @@ describe("Test 'analytics' route", () => {
       originalURL: z.string(),
       linkType: z.string(),
       totalClicks: z.number(),
+      page: z.number(),
+      limit: z.number(),
+      totalPages: z.number(),
       clicks: z
         .array(
           z.object({
@@ -95,5 +98,19 @@ describe("Test 'analytics' route", () => {
     const body = response.json();
     const result = ResponseSchema.safeParse(body);
     expect(result.success).toBe(true);
+  });
+
+  it("should return correct pagination metadata with query parameters", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: `/analytics/${testCode}?page=1&limit=10`,
+    });
+
+    expect(response.statusCode).toEqual(200);
+    const body = response.json();
+    expect(body.page).toEqual(1);
+    expect(body.limit).toEqual(10);
+    expect(body.totalPages).toEqual(1);
+    expect(Array.isArray(body.clicks)).toBe(true);
   });
 });

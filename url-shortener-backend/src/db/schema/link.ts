@@ -7,7 +7,7 @@ export const link = p.pgTable("link", {
     .primaryKey()
     .notNull(),
   shortCode: p.varchar("short_code", { length: 32 }).notNull().unique(),
-  originalURL: p.varchar("original_url").notNull(),
+  originalURL: p.varchar("original_url", { length: 512 }).notNull(),
   linkType: p.varchar("link_type").default("normal").notNull(),
   createdAt: p.timestamp("created_at").defaultNow().notNull(),
 });
