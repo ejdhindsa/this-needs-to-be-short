@@ -1,5 +1,12 @@
+<script setup lang="ts">
+import Header from "./components/Header.vue";
+</script>
+
 <template>
-  <main>
-    <RouterView />
-  </main>
+  <div>
+    <Header />
+    <main>
+      <RouterView />
+    </main>
+  </div>
 </template>
