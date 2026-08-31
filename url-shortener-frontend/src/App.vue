@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Header from "./components/Header.vue";
 import Footer from "./components/Footer.vue";
+import ToastComponent from "./components/ToastComponent.vue";
 </script>
 
 <template>
@@ -10,6 +11,7 @@ import Footer from "./components/Footer.vue";
       <RouterView />
     </main>
     <Footer />
+    <ToastComponent />
   </div>
 </template>
 
@@ -20,7 +22,8 @@ import Footer from "./components/Footer.vue";
   min-height: 100vh;
 }
 
-.maincontent {
+.mainLayout {
   flex: 1;
 }
 </style>
+
