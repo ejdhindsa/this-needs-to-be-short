@@ -53,7 +53,7 @@ onUnmounted(() => {
 
 .modal {
   width: 100%;
-  max-width: 75vh;
+  max-width: min(50rem, calc(100vw - 3rem));
   max-height: 90vh;
   overflow-y: auto;
   display: flex;

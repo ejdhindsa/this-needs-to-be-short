@@ -13,11 +13,15 @@ import { useToast } from "../composables/useToast";
 import { useHistoryStore } from "../stores/historyStore";
 import { shortenURL } from "../api/clients";
 import { normalizeUrl, isValidUrl } from "../utils/url";
+import ResultCard from "../components/ResultCard.vue";
+import ResponsiveModal from "../components/ResponsiveModal.vue";
+import type { ShortenResponse } from "../api/types";
 
 const originalURL = ref("");
 const customCode = ref("");
 const showCustomInput = ref(false);
 const isLoading = ref(false);
+const shortenResult = ref<ShortenResponse>();
 
 const { successToast, infoToast, errorToast } = useToast();
 const historyStore = useHistoryStore();
@@ -39,19 +43,21 @@ const handleSubmit = async () => {
   isLoading.value = true;
 
   try {
-    const result = await shortenURL({
+    shortenResult.value = await shortenURL({
       url: normalizedUrl,
       customCode:
         showCustomInput.value && trimmedCode ? trimmedCode : undefined,
     });
 
-    historyStore.addLink(result);
+    historyStore.addLink(shortenResult.value);
 
     if (trimmedCode) {
       successToast("See, custom is always better.");
     } else {
       successToast("Link Unwrecked! Much better.");
     }
+
+    isResultCardOpen.value = true;
 
     originalURL.value = "";
     customCode.value = "";
@@ -91,6 +97,12 @@ const handleClear = () => {
 // later when the need arises
 const formatCustomCode = () => {
   customCode.value = customCode.value.replace(/\s+/g, "-");
+};
+
+const isResultCardOpen = ref(false);
+
+const toggleResultCardOpen = () => {
+  isResultCardOpen.value = !isResultCardOpen.value;
 };
 </script>
 
@@ -170,6 +182,14 @@ const formatCustomCode = () => {
       </div>
     </form>
   </div>
+  <ResponsiveModal :isOpen="isResultCardOpen" @close="toggleResultCardOpen">
+    <ResultCard
+      v-if="shortenResult"
+      :originalURL="shortenResult.originalURL"
+      :shortCode="shortenResult.shortCode"
+      @close="toggleResultCardOpen"
+    />
+  </ResponsiveModal>
 </template>
 
 <style lang="scss" scoped>
