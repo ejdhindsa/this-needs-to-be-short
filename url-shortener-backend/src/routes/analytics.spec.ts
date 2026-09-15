@@ -56,7 +56,7 @@ describe("Test 'analytics' route", () => {
   it("should return the number of total clicks accurately", async () => {
     await app.inject({
       method: "GET",
-      url: `/redirect/${testCode}`,
+      url: `/${testCode}`,
     });
 
     const response = await app.inject({

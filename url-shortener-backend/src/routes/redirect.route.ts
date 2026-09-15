@@ -10,27 +10,24 @@ interface RedirectRouteType {
 }
 
 export async function redirectRoutes(fastify: FastifyInstance) {
-  fastify.get<RedirectRouteType>(
-    "/redirect/:shortCode",
-    async (request, reply) => {
-      const { shortCode } = request.params;
-      const referer = request.headers?.referer || null;
+  fastify.get<RedirectRouteType>("/:shortCode", async (request, reply) => {
+    const { shortCode } = request.params;
+    const referer = request.headers?.referer || null;
 
-      const [targetLink] = await db
-        .select()
-        .from(link)
-        .where(eq(link.shortCode, shortCode))
-        .limit(1);
+    const [targetLink] = await db
+      .select()
+      .from(link)
+      .where(eq(link.shortCode, shortCode))
+      .limit(1);
 
-      if (!targetLink) {
-        return reply.code(404).send({ error: "Item not found! " });
-      }
+    if (!targetLink) {
+      return reply.code(404).send({ error: "Item not found! " });
+    }
 
-      await db
-        .insert(clicks)
-        .values({ linkId: targetLink.sid, referrer: referer });
+    await db
+      .insert(clicks)
+      .values({ linkId: targetLink.sid, referrer: referer });
 
-      return reply.code(302).redirect(targetLink.originalURL);
-    },
-  );
+    return reply.code(302).redirect(targetLink.originalURL);
+  });
 }

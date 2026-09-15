@@ -19,8 +19,9 @@ const { successToast, errorToast } = useToast();
 const isCopied = ref(false);
 const qrRef = ref<InstanceType<typeof QrcodeVue> | null>(null);
 
-const displayUrl = computed(() => `unwreck.dev/${props.shortCode}`);
-const fullUrl = computed(() => `https://unwreck.dev/${props.shortCode}`);
+const displayUrl = computed(() => `s.unwreck.dev/${props.shortCode}`);
+const baseUrl = import.meta.env.VITE_SHORT_BASE_URL || "http://localhost:3000";
+const fullUrl = computed(() => `${baseUrl}${props.shortCode}`);
 
 const handleCopy = async () => {
   try {

@@ -39,7 +39,7 @@ describe("Test redirect() file", () => {
   it("should return 404 when no row exists", async () => {
     const response = await app.inject({
       method: "GET",
-      url: "/redirect/this-doesnt-exist",
+      url: "/this-doesnt-exist",
     });
 
     expect(response.statusCode).toEqual(404);
@@ -48,7 +48,7 @@ describe("Test redirect() file", () => {
   it("should redirect to the original link when the short code exists", async () => {
     const response = await app.inject({
       method: "GET",
-      url: `/redirect/${testCode}`,
+      url: `/${testCode}`,
     });
 
     expect(response.statusCode).toEqual(302);
@@ -58,7 +58,7 @@ describe("Test redirect() file", () => {
   it("should record the clicks in the clicks database", async () => {
     await app.inject({
       method: "GET",
-      url: `/redirect/${testCode}`,
+      url: `/${testCode}`,
     });
 
     const recordedClicks = await db
@@ -72,7 +72,7 @@ describe("Test redirect() file", () => {
   it("should have a valid referrer header param in a link where the referrer is passed", async () => {
     await app.inject({
       method: "GET",
-      url: `/redirect/${testCode}`,
+      url: `/${testCode}`,
       headers: { referer: "https://www.ekamjot.me" },
     });
 
@@ -87,7 +87,7 @@ describe("Test redirect() file", () => {
   it("should have the referrer as null when none is passed", async () => {
     await app.inject({
       method: "GET",
-      url: `/redirect/${testCode}`,
+      url: `/${testCode}`,
     });
 
     const recordedClicks = await db
