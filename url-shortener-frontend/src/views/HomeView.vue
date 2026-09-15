@@ -15,6 +15,7 @@ import { shortenURL } from "../api/clients";
 import { normalizeUrl, isValidUrl } from "../utils/url";
 import ResultCard from "../components/ResultCard.vue";
 import ResponsiveModal from "../components/ResponsiveModal.vue";
+import HistoryList from "../components/HistoryList.vue";
 import type { ShortenResponse } from "../api/types";
 
 const originalURL = ref("");
@@ -167,9 +168,9 @@ const toggleResultCardOpen = () => {
         <ChevronDown v-else :size="16" />
       </button>
 
-      <div class="customAccordion" :class="{ isExpanded: showCustomInput }">
-        <div class="customInputRow">
-          <span class="customPrefix">unwreck.dev/</span>
+      <Transition name="expand">
+        <div v-show="showCustomInput" class="customInputRow">
+          <span class="customPrefix">s.unwreck.dev/</span>
           <input
             v-model="customCode"
             type="text"
@@ -179,8 +180,11 @@ const toggleResultCardOpen = () => {
             @input="formatCustomCode"
           />
         </div>
-      </div>
+      </Transition>
     </form>
+  </div>
+  <div class="linkHistory">
+    <HistoryList />
   </div>
   <ResponsiveModal :isOpen="isResultCardOpen" @close="toggleResultCardOpen">
     <ResultCard
@@ -411,14 +415,17 @@ const toggleResultCardOpen = () => {
   }
 }
 
-.customAccordion {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.2s ease;
+.expand-enter-active,
+.expand-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
 
-  &.isExpanded {
-    grid-template-rows: 1fr;
-  }
+.expand-enter-from,
+.expand-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 .customInputRow {
@@ -432,6 +439,7 @@ const toggleResultCardOpen = () => {
   border-radius: var(--uw-radius-md);
   padding: 0.375rem 0.75rem;
   min-width: 0;
+  margin-top: 0.25rem;
   transition: border-color 0.2s ease;
 
   &:focus-within {

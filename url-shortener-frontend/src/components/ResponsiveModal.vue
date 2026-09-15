@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from "vue";
 
-const props = defineProps({
-  isOpen: {
-    type: Boolean,
-    required: true,
-  },
+interface Props {
+  isOpen: boolean;
+  size?: "default" | "compact";
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  size: "default",
 });
 
-const emits = defineEmits(["close"]);
+const emits = defineEmits<{
+  close: [];
+}>();
 
 const handleKeyDown = (pressed: KeyboardEvent) => {
   if (pressed.key === "Escape" && props.isOpen) {
@@ -29,7 +33,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <Transition name="fade">
       <div class="background" v-if="isOpen" @click.self="emits('close')">
-        <div class="modal">
+        <div class="modal" :class="{ isCompact: props.size === 'compact' }">
           <slot />
         </div>
       </div>
@@ -63,6 +67,10 @@ onUnmounted(() => {
   border: 1px solid var(--uw-border-subtle);
   border-radius: 10px;
   padding: 1.5rem;
+
+  &.isCompact {
+    max-width: min(24rem, calc(100vw - 2rem));
+  }
 }
 
 .fade-enter-active,
