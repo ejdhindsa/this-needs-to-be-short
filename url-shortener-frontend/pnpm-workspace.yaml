@@ -1,5 +1,2 @@
 allowBuilds:
-  '@parcel/watcher': true
-overrides:
-  '@unwreck/core': link:../../unwreck-core/packages/core
-  unwreck-: link:../../unwreck-
+  "@parcel/watcher": true

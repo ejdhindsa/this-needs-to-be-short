@@ -4,10 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  unwreck-: link:../../unwreck-
-  '@unwreck/core': link:../../unwreck-core/packages/core
-
 importers:
 
   .:
@@ -16,8 +12,8 @@ importers:
         specifier: ^1.33.0
         version: 1.33.0(vue@3.5.41(typescript@6.0.3))
       '@unwreck/core':
-        specifier: link:../../unwreck-core/packages/core
-        version: link:../../unwreck-core/packages/core
+        specifier: ^1.0.1
+        version: 1.0.1(vite@8.2.2(@types/node@24.13.3)(sass@1.103.1)(yaml@2.9.0))
       axios:
         specifier: ^1.19.0
         version: 1.19.0(debug@4.4.3)
@@ -30,9 +26,6 @@ importers:
       sass:
         specifier: ^1.103.1
         version: 1.103.1
-      unwreck-:
-        specifier: link:../../unwreck-
-        version: link:../../unwreck-
       vue:
         specifier: ^3.5.40
         version: 3.5.41(typescript@6.0.3)
@@ -309,6 +302,15 @@ packages:
 
   '@types/node@24.13.3':
     resolution: {integrity: sha512-Dh8vAsV36ig5wa9OX4pXvMc9D3Veibfw2wix0CUwYODLD8nkj9UsLjASr49nPg+2eKzxhBV+v7L8pXvT4e639Q==}
+
+  '@unwreck/core@1.0.1':
+    resolution: {integrity: sha512-rHJg2Qbw9urXLlgJpJbK2E4qtasFTOMa0RY3DiG0kSgg+gYEyWPfGZbxXVtqIatMAv77k8y4PhtCKees767sQA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      vite: '>=6'
+    peerDependenciesMeta:
+      vite:
+        optional: true
 
   '@vitejs/plugin-vue@6.0.8':
     resolution: {integrity: sha512-0ZjgOg7oO6farnNGup7yvoM/YXZV84OZxHAwtflItNa/6zzQyVb5LNxyea3FEKEX2XlagIKzrlH7wwxkKgtiew==}
@@ -1064,6 +1066,10 @@ snapshots:
   '@types/node@24.13.3':
     dependencies:
       undici-types: 7.18.2
+
+  '@unwreck/core@1.0.1(vite@8.2.2(@types/node@24.13.3)(sass@1.103.1)(yaml@2.9.0))':
+    optionalDependencies:
+      vite: 8.2.2(@types/node@24.13.3)(sass@1.103.1)(yaml@2.9.0)
 
   '@vitejs/plugin-vue@6.0.8(vite@8.2.2(@types/node@24.13.3)(sass@1.103.1)(yaml@2.9.0))(vue@3.5.41(typescript@6.0.3))':
     dependencies:

@@ -15,10 +15,6 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
-    watch: {
-      // force vite to watch the linked package
-      ignored: ["!**/node_modules/@unwreck/core/**"],
-    },
     fs: {
       allow: ["../.."],
     },

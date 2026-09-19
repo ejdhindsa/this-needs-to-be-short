@@ -10,7 +10,7 @@ export type LinkTypeValues = (typeof LinkType)[keyof typeof LinkType];
 export const ShortenSchema = z.object({
   url: z
     .url({ error: "Invalid URL format" })
-    .max(512)
+    .max(2048)
     .refine(
       (val: string) => val.startsWith("http://") || val.startsWith("https://"),
       {
