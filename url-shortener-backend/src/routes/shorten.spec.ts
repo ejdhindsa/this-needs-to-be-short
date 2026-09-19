@@ -207,10 +207,10 @@ describe("Test shorten route", () => {
     expect(response.statusCode).toBe(400);
   });
 
-  it("should not accept links longer than 512 characters", async () => {
+  it("should not accept links longer than 2048 characters", async () => {
     const longUrl =
       "https://" +
-      Array.from({ length: 512 }, () =>
+      Array.from({ length: 2048 }, () =>
         Math.random().toString(36).charAt(2),
       ).join("");
 

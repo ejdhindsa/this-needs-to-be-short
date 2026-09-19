@@ -4,7 +4,7 @@ export interface ShortenRequest {
 }
 
 export interface ShortenResponse {
-  readonly sid: number;
+  readonly sid: string;
   shortCode: string;
   originalURL: string;
   linkType: "Normal" | "Custom";
@@ -12,7 +12,7 @@ export interface ShortenResponse {
 }
 
 export interface ClickRecord {
-  readonly clickId: number;
+  readonly clickId: string;
   referrer?: string | null;
   clickedAt: string;
 }

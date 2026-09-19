@@ -104,7 +104,7 @@ const formatDate = (isoString: string) => {
                 Latest
               </span>
               <span
-                v-if="item.linkType === 'Custom'"
+                v-if="item.linkType?.toLowerCase() === 'custom'"
                 class="linkBadge customBadge"
               >
                 Custom
