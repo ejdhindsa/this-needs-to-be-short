@@ -1,31 +1,24 @@
-### BUILD ENVIRONMENT ###
-
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS base
+RUN corepack enable
 WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-COPY package*.json ./
-RUN npm ci
+FROM base AS prod-deps
+RUN pnpm install --prod --frozen-lockfile
 
+FROM base AS build
+RUN pnpm install --frozen-lockfile
 COPY . .
+RUN pnpm build
 
-RUN npm run build
-
-RUN npm ci --omit=dev && npm cache clean --force
-
-### PRODUCTION RUNTIME ###
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
+LABEL org.opencontainers.image.source="https://github.com/ejdhindsa/this-needs-to-be-short"
 WORKDIR /app
-
 ENV NODE_ENV=production
-
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
-
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=build --chown=nodejs:nodejs /app/dist ./dist
+COPY package.json ./
 USER nodejs
-
 EXPOSE 3000
-
-CMD ["npm", "start"]
+CMD ["node", "dist/src/server.js"]

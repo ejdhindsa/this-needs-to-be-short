@@ -8,10 +8,8 @@ dist/
 coverage/
 
 # Environment variables
-.env
-.env.test
-.env.local
-.env.*.local
+.env*
+!.env.example
 
 # Logs
 *.log

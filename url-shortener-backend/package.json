@@ -2,11 +2,10 @@
   "name": "url-shortener-backend",
   "version": "1.0.0",
   "type": "module",
-  "description": "",
+  "description": "Fastify backend for this-needs-to-be-short URL shortener",
   "main": "dist/src/server.js",
   "scripts": {
-    "prebuild": "rm -rf dist",
-    "build": "tsc --outDir dist",
+    "build": "rm -rf dist && tsc --outDir dist",
     "test": "vitest run --no-file-parallelism",
     "dev": "tsx watch src/server.ts",
     "start": "node dist/src/server.js",
@@ -15,8 +14,9 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Ekamjot Singh",
+  "license": "GPL-3.0-or-later",
+  "packageManager": "pnpm@10.34.5",
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@vitest/coverage-v8": "^4.1.10",
@@ -36,6 +36,6 @@
     "zod": "^4.4.3"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }
