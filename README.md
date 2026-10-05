@@ -1,5 +1,7 @@
 # This needs to be SHORT
 
+[![CI](https://github.com/ejdhindsa/this-needs-to-be-short/actions/workflows/ci.yml/badge.svg)](https://github.com/ejdhindsa/this-needs-to-be-short/actions/workflows/ci.yml)
+
 A clean, self-hosted URL shortener with custom slug creation and click analytics: no ads, no account required, no subscription to set a custom alias.
 
 **Live:** <https://shortener.unwreck.dev>
