@@ -94,7 +94,7 @@ const handleClear = () => {
   originalURL.value = "";
 };
 
-//TODO: This should be sanitised a bit better, I willl revist this
+//TODO: This should be sanitised a bit better, I will revisit this
 // later when the need arises
 const formatCustomCode = () => {
   customCode.value = customCode.value.replace(/\s+/g, "-");
