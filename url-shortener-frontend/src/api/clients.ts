@@ -29,7 +29,7 @@ apiClient.interceptors.response.use(
     } else if ([500, 502, 503].includes(error.response?.status)) {
       console.error("Internal Server Error");
     } else {
-      console.error("An error occured", error);
+      console.error("An error occurred", error);
     }
 
     return Promise.reject(error);
