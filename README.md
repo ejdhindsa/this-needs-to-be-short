@@ -84,11 +84,16 @@ TURNSTILE_SECRET_KEY=
 
 ```bash
 pnpm install
-pnpm run db:push
 pnpm run dev
 ```
 
-Runs on `http://localhost:3000`. Check `http://localhost:3000/ping` to confirm it's up.
+Migrations run automatically at startup before the server accepts traffic. The server runs on `http://localhost:3000`. Check `http://localhost:3000/ping` to confirm it's up.
+
+#### Schema Changes & Migrations
+
+- **Day-to-day workflow:** edit schema definitions in `src/db/schema/`, run `pnpm db:generate` to generate a versioned migration in `./drizzle`, and commit the generated files.
+- **Local prototyping shortcut:** `pnpm db:push` is available to prototype schema tweaks directly against a local database without generating a migration.
+
 
 ### 3. Frontend
 
