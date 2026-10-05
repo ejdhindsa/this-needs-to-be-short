@@ -18,6 +18,7 @@ ENV NODE_ENV=production
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=build /app/drizzle ./drizzle
 COPY package.json ./
 USER nodejs
 EXPOSE 3000
