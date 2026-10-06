@@ -7,6 +7,17 @@ export const LinkType = {
 
 export type LinkTypeValues = (typeof LinkType)[keyof typeof LinkType];
 
+export const RESERVED_ALIASES = [
+  "api",
+  "ping",
+  "shorten",
+  "analytics",
+  "health",
+  "admin",
+  "static",
+  "assets",
+] as const;
+
 export const ShortenSchema = z.object({
   url: z
     .url({ error: "Invalid URL format" })
@@ -24,6 +35,15 @@ export const ShortenSchema = z.object({
     .regex(
       /^[a-zA-Z0-9_-]+$/,
       "Custom code can only contain letters, numbers, underscores, and hyphens",
+    )
+    .refine(
+      (val: string) =>
+        !RESERVED_ALIASES.includes(
+          val.toLowerCase() as (typeof RESERVED_ALIASES)[number],
+        ),
+      {
+        message: "This alias is reserved",
+      },
     )
     .optional(),
 });

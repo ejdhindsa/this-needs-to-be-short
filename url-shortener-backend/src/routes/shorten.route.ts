@@ -4,6 +4,8 @@ import { ShortenSchema } from "../validators/shorten.validator.js";
 import { link } from "../db/schema/link.js";
 import randomCodeGenerator from "../utils/randomCodeGenerator.js";
 import { LinkType } from "../validators/shorten.validator.js";
+import { toLinkResponse } from "../dto/link.dto.js";
+import { isUniqueViolation } from "../db/errors.js";
 
 const MaxRetries = {
   maxRetries: 5,
@@ -13,7 +15,10 @@ export async function shortenRoutes(fastify: FastifyInstance) {
   fastify.post("/shorten", async (request, reply) => {
     const result = ShortenSchema.safeParse(request.body);
     if (!result.success) {
-      return reply.status(400).send(result.error.issues);
+      return reply.status(400).send({
+        error: "Validation failed",
+        issues: result.error.issues,
+      });
     }
 
     if (result.data.customCode) {
@@ -29,9 +34,13 @@ export async function shortenRoutes(fastify: FastifyInstance) {
           })
           .returning();
 
-        return reply.status(201).send(insertedLink);
-      } catch (err: any) {
-        if (err?.code === "23505" || err?.cause?.code === "23505") {
+        if (!insertedLink) {
+          return reply.status(500).send({ error: "Internal Server Error" });
+        }
+
+        return reply.status(201).send(toLinkResponse(insertedLink));
+      } catch (err: unknown) {
+        if (isUniqueViolation(err)) {
           request.log.warn(err);
           return reply.status(409).send({
             error: "The requested shortcode already exists in the database",
@@ -56,9 +65,13 @@ export async function shortenRoutes(fastify: FastifyInstance) {
             })
             .returning();
 
-          return reply.status(201).send(insertedLink);
-        } catch (err: any) {
-          if (err?.code === "23505" || err?.cause?.code === "23505") {
+          if (!insertedLink) {
+            continue;
+          }
+
+          return reply.status(201).send(toLinkResponse(insertedLink));
+        } catch (err: unknown) {
+          if (isUniqueViolation(err)) {
             continue;
           }
           request.log.error(err);

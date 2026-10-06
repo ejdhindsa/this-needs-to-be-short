@@ -89,7 +89,7 @@ pnpm install
 pnpm run dev
 ```
 
-Migrations run automatically at startup before the server accepts traffic. The server runs on `http://localhost:3000`. Check `http://localhost:3000/ping` to confirm it's up.
+Migrations run automatically at startup before the server accepts traffic. The server runs on `http://localhost:3000`. Check `http://localhost:3000/api/ping` to confirm it's up.
 
 #### Schema Changes & Migrations
 
@@ -126,7 +126,28 @@ Open `http://localhost:5173`. The dev server proxies `/api` to `http://localhost
 
 ## API Reference
 
-### `POST /shorten`
+All application endpoints are served under the `/api` prefix, with the exception of short link redirects which are resolved directly at the root (`/:shortCode`).
+
+### Error Shape
+
+API errors follow a consistent response shape:
+
+```json
+{
+  "error": "Validation failed",
+  "issues": [
+    {
+      "message": "This alias is reserved",
+      "path": ["customCode"]
+    }
+  ]
+}
+```
+
+- On validation failures (`400`), `error` is `"Validation failed"` accompanied by an array of Zod `issues`.
+- Other non-2xx responses (e.g. `404`, `409`, `429`, `500`) return `{ "error": "<message>" }`.
+
+### `POST /api/shorten`
 
 ```json
 {
@@ -136,7 +157,19 @@ Open `http://localhost:5173`. The dev server proxies `/api` to `http://localhost
 ```
 
 - `url` (string, required): valid HTTP/HTTPS address.
-- `customCode` (string, optional): 3 to 32 characters, letters/numbers/underscores/hyphens.
+- `customCode` (string, optional): 3 to 32 characters, letters/numbers/underscores/hyphens (`[a-zA-Z0-9_-]`). Cannot match reserved aliases (case-insensitive).
+- **Reserved aliases:** `api`, `ping`, `shorten`, `analytics`, `health`, `admin`, `static`, `assets`.
+
+Response:
+
+```json
+{
+  "shortCode": "my-alias",
+  "originalURL": "https://example.com",
+  "linkType": "custom",
+  "createdAt": "2026-10-06T10:00:00.000Z"
+}
+```
 
 | Status | Meaning                   |
 | ------ | ------------------------- |
@@ -148,7 +181,7 @@ Open `http://localhost:5173`. The dev server proxies `/api` to `http://localhost
 
 302 redirect to the original URL; logs referrer + timestamp. `404` if the code doesn't exist.
 
-### `GET /analytics/:shortCode`
+### `GET /api/analytics/:shortCode`
 
 Query params: `page` (default `1`), `limit` (default `50`, max `100`).
 
@@ -171,9 +204,16 @@ Query params: `page` (default `1`), `limit` (default `50`, max `100`).
 }
 ```
 
-### `GET /ping`
+### `GET /api/ping`
 
-`{ "status": "ok" }` (for health checks).
+Health check endpoint returning service status and deployment version:
+
+```json
+{
+  "status": "ok",
+  "version": "dev"
+}
+```
 
 ## Running Tests
 
