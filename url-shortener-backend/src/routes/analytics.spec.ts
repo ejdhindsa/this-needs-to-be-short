@@ -34,7 +34,7 @@ describe("Test 'analytics' route", () => {
   it("should show an error if the link is not found", async () => {
     const response = await app.inject({
       method: "GET",
-      url: "analytics/this-does-not-exist",
+      url: "/api/analytics/this-does-not-exist",
     });
 
     expect(response.statusCode).toEqual(404);
@@ -43,7 +43,7 @@ describe("Test 'analytics' route", () => {
   it("should return still return if there are no clicks on a link", async () => {
     const response = await app.inject({
       method: "GET",
-      url: `/analytics/${testCode}`,
+      url: `/api/analytics/${testCode}`,
     });
 
     expect(response.statusCode).toEqual(200);
@@ -61,7 +61,7 @@ describe("Test 'analytics' route", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: `/analytics/${testCode}`,
+      url: `/api/analytics/${testCode}`,
     });
 
     expect(response.statusCode).toEqual(200);
@@ -92,7 +92,7 @@ describe("Test 'analytics' route", () => {
     });
     const response = await app.inject({
       method: "GET",
-      url: `/analytics/${testCode}`,
+      url: `/api/analytics/${testCode}`,
     });
 
     const body = response.json();
@@ -103,7 +103,7 @@ describe("Test 'analytics' route", () => {
   it("should return correct pagination metadata with query parameters", async () => {
     const response = await app.inject({
       method: "GET",
-      url: `/analytics/${testCode}?page=1&limit=10`,
+      url: `/api/analytics/${testCode}?page=1&limit=10`,
     });
 
     expect(response.statusCode).toEqual(200);
@@ -117,7 +117,7 @@ describe("Test 'analytics' route", () => {
   it("should floor negative or zero page to 1", async () => {
     const response = await app.inject({
       method: "GET",
-      url: `/analytics/${testCode}?page=-5`,
+      url: `/api/analytics/${testCode}?page=-5`,
     });
 
     expect(response.statusCode).toEqual(200);
@@ -128,7 +128,7 @@ describe("Test 'analytics' route", () => {
   it("should cap limit to 100 when exceeding maximum", async () => {
     const response = await app.inject({
       method: "GET",
-      url: `/analytics/${testCode}?limit=500`,
+      url: `/api/analytics/${testCode}?limit=500`,
     });
 
     expect(response.statusCode).toEqual(200);
@@ -139,7 +139,7 @@ describe("Test 'analytics' route", () => {
   it("should clamp limit to minimum of 1 when negative", async () => {
     const response = await app.inject({
       method: "GET",
-      url: `/analytics/${testCode}?limit=-10`,
+      url: `/api/analytics/${testCode}?limit=-10`,
     });
 
     expect(response.statusCode).toEqual(200);

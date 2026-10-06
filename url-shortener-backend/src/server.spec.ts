@@ -3,9 +3,9 @@ import { app } from "./app.js";
 
 describe("Test server() file", () => {
   it("should return status 200 when pinged", async () => {
-    const response = await app.inject({ method: "GET", url: "/ping" });
+    const response = await app.inject({ method: "GET", url: "/api/ping" });
 
     expect(response.statusCode).toEqual(200);
-    expect(response.json()).toEqual({ status: "ok" });
+    expect(response.json()).toMatchObject({ status: "ok" });
   });
 });

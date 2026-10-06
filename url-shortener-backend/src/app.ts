@@ -47,7 +47,14 @@ await app.register(fastifyCors, {
   methods: ["GET", "POST"],
 });
 
-app.register(pingRoutes);
-app.register(shortenRoutes);
+await app.register(
+  async (api) => {
+    api.register(pingRoutes);
+    api.register(shortenRoutes);
+    api.register(analyticsRoute);
+  },
+  { prefix: "/api" },
+);
+
 app.register(redirectRoutes);
-app.register(analyticsRoute);
+

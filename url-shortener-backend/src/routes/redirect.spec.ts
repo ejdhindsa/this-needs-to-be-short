@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { app } from "../app.js";
 import { db } from "../db/index.js";
 import { link } from "../db/schema/link.js";
@@ -96,5 +96,20 @@ describe("Test redirect() file", () => {
       .where(eq(clicks.linkId, testId));
 
     expect(recordedClicks[0]?.referrer).toBeNull();
+  });
+
+  it("should still redirect if recording click fails in the database", async () => {
+    const spy = vi.spyOn(db, "insert").mockImplementationOnce(() => {
+      throw new Error("Click recording error");
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/${testCode}`,
+    });
+
+    expect(response.statusCode).toEqual(302);
+    expect(response.headers.location).toEqual("https://ekamjot.me");
+    spy.mockRestore();
   });
 });

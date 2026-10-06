@@ -9,7 +9,7 @@ describe("Test 'app' file", () => {
     for (let i = 0; i < MAX_CALL_LIMIT + 1; i++) {
       response = await app.inject({
         method: "GET",
-        url: "/ping",
+        url: "/api/ping",
       });
     }
 

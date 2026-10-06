@@ -4,10 +4,9 @@ export interface ShortenRequest {
 }
 
 export interface ShortenResponse {
-  readonly sid: string;
   shortCode: string;
   originalURL: string;
-  linkType: "Normal" | "Custom";
+  linkType: "normal" | "custom";
   createdAt: string;
 }
 
@@ -31,4 +30,5 @@ export interface AnalyticsResponse {
 export interface ApiError {
   error?: string;
   message?: string;
+  issues?: Array<{ message: string }>;
 }

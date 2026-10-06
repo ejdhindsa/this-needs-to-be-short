@@ -24,9 +24,13 @@ export async function redirectRoutes(fastify: FastifyInstance) {
       return reply.code(404).send({ error: "Item not found! " });
     }
 
-    await db
-      .insert(clicks)
-      .values({ linkId: targetLink.sid, referrer: referer });
+    try {
+      await db
+        .insert(clicks)
+        .values({ linkId: targetLink.sid, referrer: referer });
+    } catch (err: unknown) {
+      request.log.error(err, "Failed to record click");
+    }
 
     return reply.code(302).redirect(targetLink.originalURL);
   });

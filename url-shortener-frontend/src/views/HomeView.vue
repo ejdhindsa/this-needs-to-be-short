@@ -27,6 +27,27 @@ const shortenResult = ref<ShortenResponse>();
 const { successToast, infoToast, errorToast } = useToast();
 const historyStore = useHistoryStore();
 
+const RESERVED_ALIASES = [
+  "api",
+  "ping",
+  "shorten",
+  "analytics",
+  "health",
+  "admin",
+  "static",
+  "assets",
+];
+
+const shortBaseUrl =
+  import.meta.env.VITE_SHORT_BASE_URL || "http://localhost:3000";
+const displayHost = (() => {
+  try {
+    return new URL(shortBaseUrl).host;
+  } catch {
+    return "s.unwreck.dev";
+  }
+})();
+
 const handleSubmit = async () => {
   const rawUrl = originalURL.value.trim();
   if (!rawUrl) {
@@ -41,6 +62,28 @@ const handleSubmit = async () => {
   }
 
   const trimmedCode = customCode.value.trim();
+
+  if (showCustomInput.value && trimmedCode) {
+    if (trimmedCode.length < 3) {
+      errorToast("Custom code must be at least 3 characters long");
+      return;
+    }
+    if (trimmedCode.length > 32) {
+      errorToast("Custom code must be at most 32 characters long");
+      return;
+    }
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmedCode)) {
+      errorToast(
+        "Custom code can only contain letters, numbers, underscores, and hyphens",
+      );
+      return;
+    }
+    if (RESERVED_ALIASES.includes(trimmedCode.toLowerCase())) {
+      errorToast("This alias is reserved");
+      return;
+    }
+  }
+
   isLoading.value = true;
 
   try {
@@ -64,9 +107,22 @@ const handleSubmit = async () => {
     customCode.value = "";
     showCustomInput.value = false;
   } catch (error) {
-    //TODO: Maybe the Axios errors should exist in clients.ts not here
-    if (axios.isAxiosError(error) && error.response?.status === 409) {
-      errorToast("No, not this one. She's taken.");
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 400) {
+        const issueMsg =
+          error.response.data?.issues?.[0]?.message ||
+          error.response.data?.error ||
+          "Validation failed";
+        errorToast(issueMsg);
+      } else if (error.response?.status === 409) {
+        errorToast("No, not this one. She's taken.");
+      } else if (error.response?.status === 429) {
+        errorToast("Slow down, try again in a minute");
+      } else if (!error.response || error.code === "ERR_NETWORK") {
+        errorToast("The network took a nap. Check your connection!");
+      } else {
+        errorToast("I am as clueless as you are, maybe try again?");
+      }
     } else {
       errorToast("I am as clueless as you are, maybe try again?");
     }
@@ -170,7 +226,7 @@ const toggleResultCardOpen = () => {
 
       <Transition name="expand">
         <div v-show="showCustomInput" class="customInputRow">
-          <span class="customPrefix">s.unwreck.dev/</span>
+          <span class="customPrefix">{{ displayHost }}/</span>
           <input
             v-model="customCode"
             type="text"

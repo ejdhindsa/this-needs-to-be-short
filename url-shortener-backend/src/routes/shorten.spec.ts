@@ -26,7 +26,7 @@ describe("Test shorten route", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/shorten",
+      url: "/api/shorten",
       payload: { url: "https://www.google.com" },
     });
     const body = response.json();
@@ -34,16 +34,23 @@ describe("Test shorten route", () => {
     expect(response.statusCode).toEqual(201);
     expect(body).toHaveProperty("shortCode");
     expect(body.originalURL).toEqual("https://www.google.com");
+    expect(body).not.toHaveProperty("sid");
+    expect(body).toHaveProperty("linkType");
+    expect(body).toHaveProperty("createdAt");
   });
 
   it("should be unsuccessful with illegal parameters", async () => {
     const response = await app.inject({
       method: "POST",
-      url: "/shorten",
+      url: "/api/shorten",
       payload: { url: "not-a-url" },
     });
 
     expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: "Validation failed",
+      issues: expect.any(Array),
+    });
   });
 
   it("should retry and succeed if the shortcode generated is not unique", async () => {
@@ -61,7 +68,7 @@ describe("Test shorten route", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/shorten",
+      url: "/api/shorten",
       payload: { url: "https://www.google.com" },
     });
 
@@ -83,7 +90,7 @@ describe("Test shorten route", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/shorten",
+      url: "/api/shorten",
       payload: { url: "https://www.google.com" },
     });
 
@@ -98,7 +105,7 @@ describe("Test shorten route", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/shorten",
+      url: "/api/shorten",
       payload: {
         url: "https://www.ekamjot.me",
         customCode,
@@ -116,7 +123,7 @@ describe("Test shorten route", () => {
 
     await app.inject({
       method: "POST",
-      url: "/shorten",
+      url: "/api/shorten",
       payload: {
         url: "https://www.google.com",
         customCode,
@@ -125,7 +132,7 @@ describe("Test shorten route", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/shorten",
+      url: "/api/shorten",
       payload: {
         url: "https://www.google.com",
         customCode,
@@ -147,7 +154,7 @@ describe("Test shorten route", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/shorten",
+      url: "/api/shorten",
       payload: {
         url: "https://ekamjot.me",
       },
@@ -169,7 +176,7 @@ describe("Test shorten route", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/shorten",
+      url: "/api/shorten",
       payload: {
         url: "https://ekamjot.me",
         customCode,
@@ -185,7 +192,7 @@ describe("Test shorten route", () => {
   it("should not accept links that do not start with http or https", async () => {
     const response = await app.inject({
       method: "POST",
-      url: "/shorten",
+      url: "/api/shorten",
       payload: { url: "www.ekamjot.me" },
     });
 
@@ -197,7 +204,7 @@ describe("Test shorten route", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/shorten",
+      url: "/api/shorten",
       payload: {
         url: "ekamjot.me",
         customCode,
@@ -216,7 +223,7 @@ describe("Test shorten route", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/shorten",
+      url: "/api/shorten",
       payload: {
         url: longUrl,
       },
@@ -224,4 +231,58 @@ describe("Test shorten route", () => {
 
     expect(response.statusCode).toBe(400);
   });
+
+  it("should reject reserved aliases case-insensitively", async () => {
+    const reservedSamples = [
+      "api",
+      "API",
+      "Ping",
+      "ADMIN",
+      "health",
+      "static",
+      "assets",
+      "shorten",
+    ];
+
+    for (const alias of reservedSamples) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/shorten",
+        payload: {
+          url: "https://example.com",
+          customCode: alias,
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json();
+      expect(body.error).toBe("Validation failed");
+      expect(body.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            message: "This alias is reserved",
+          }),
+        ]),
+      );
+    }
+  });
+
+  it("should never return raw row with sid in response DTO", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/shorten",
+      payload: {
+        url: "https://example.com",
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json();
+    expect(body).toHaveProperty("shortCode");
+    expect(body).toHaveProperty("originalURL");
+    expect(body).toHaveProperty("linkType");
+    expect(body).toHaveProperty("createdAt");
+    expect(body).not.toHaveProperty("sid");
+  });
 });
+
