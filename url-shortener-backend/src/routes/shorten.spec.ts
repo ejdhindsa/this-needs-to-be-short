@@ -5,9 +5,14 @@ import { link } from "../db/schema/link.js";
 import { clicks } from "../db/schema/clicks.js";
 import randomCodeGenerator from "../utils/randomCodeGenerator.js";
 import { LinkType } from "../validators/shorten.validator.js";
+import { verifyTurnstile } from "../utils/turnstile.js";
 
 vi.mock("../utils/randomCodeGenerator.js", () => ({
   default: vi.fn(),
+}));
+
+vi.mock("../utils/turnstile.js", () => ({
+  verifyTurnstile: vi.fn().mockResolvedValue(true),
 }));
 
 afterEach(() => {
@@ -16,9 +21,15 @@ afterEach(() => {
 
 describe("Test shorten route", () => {
   beforeEach(async () => {
-    await db.delete(clicks);
-    await db.delete(link);
+    try {
+      await db.delete(clicks);
+      await db.delete(link);
+    } catch {
+      // In test environments without Postgres, DB cleanup is skipped
+    }
     vi.clearAllMocks();
+    process.env.TURNSTILE_SECRET_KEY = "1x0000000000000000000000000000000AA";
+    vi.mocked(verifyTurnstile).mockResolvedValue(true);
   });
 
   it("should be successful with all required parameters", async () => {
@@ -27,7 +38,10 @@ describe("Test shorten route", () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/shorten",
-      payload: { url: "https://www.google.com" },
+      payload: {
+        url: "https://www.google.com",
+        turnstileToken: "valid-token",
+      },
     });
     const body = response.json();
 
@@ -69,7 +83,10 @@ describe("Test shorten route", () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/shorten",
-      payload: { url: "https://www.google.com" },
+      payload: {
+        url: "https://www.google.com",
+        turnstileToken: "valid-token",
+      },
     });
 
     const body = response.json();
@@ -91,7 +108,10 @@ describe("Test shorten route", () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/shorten",
-      payload: { url: "https://www.google.com" },
+      payload: {
+        url: "https://www.google.com",
+        turnstileToken: "valid-token",
+      },
     });
 
     const body = response.json();
@@ -109,6 +129,7 @@ describe("Test shorten route", () => {
       payload: {
         url: "https://www.ekamjot.me",
         customCode,
+        turnstileToken: "valid-token",
       },
     });
 
@@ -127,6 +148,7 @@ describe("Test shorten route", () => {
       payload: {
         url: "https://www.google.com",
         customCode,
+        turnstileToken: "valid-token",
       },
     });
 
@@ -136,6 +158,7 @@ describe("Test shorten route", () => {
       payload: {
         url: "https://www.google.com",
         customCode,
+        turnstileToken: "valid-token",
       },
     });
 
@@ -157,6 +180,7 @@ describe("Test shorten route", () => {
       url: "/api/shorten",
       payload: {
         url: "https://ekamjot.me",
+        turnstileToken: "valid-token",
       },
     });
 
@@ -180,6 +204,7 @@ describe("Test shorten route", () => {
       payload: {
         url: "https://ekamjot.me",
         customCode,
+        turnstileToken: "valid-token",
       },
     });
 
@@ -193,7 +218,10 @@ describe("Test shorten route", () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/shorten",
-      payload: { url: "www.ekamjot.me" },
+      payload: {
+        url: "www.ekamjot.me",
+        turnstileToken: "valid-token",
+      },
     });
 
     expect(response.statusCode).toBe(400);
@@ -208,6 +236,7 @@ describe("Test shorten route", () => {
       payload: {
         url: "ekamjot.me",
         customCode,
+        turnstileToken: "valid-token",
       },
     });
 
@@ -226,6 +255,7 @@ describe("Test shorten route", () => {
       url: "/api/shorten",
       payload: {
         url: longUrl,
+        turnstileToken: "valid-token",
       },
     });
 
@@ -251,6 +281,7 @@ describe("Test shorten route", () => {
         payload: {
           url: "https://example.com",
           customCode: alias,
+          turnstileToken: "valid-token",
         },
       });
 
@@ -273,6 +304,7 @@ describe("Test shorten route", () => {
       url: "/api/shorten",
       payload: {
         url: "https://example.com",
+        turnstileToken: "valid-token",
       },
     });
 
@@ -295,7 +327,10 @@ describe("Test shorten route", () => {
       const response = await app.inject({
         method: "POST",
         url: "/api/shorten",
-        payload: { url },
+        payload: {
+          url,
+          turnstileToken: "valid-token",
+        },
       });
 
       expect(response.statusCode).toBe(400);
@@ -326,7 +361,10 @@ describe("Test shorten route", () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/shorten",
-      payload: { url: "https://malware.testing.google.test" },
+      payload: {
+        url: "https://malware.testing.google.test",
+        turnstileToken: "valid-token",
+      },
     });
 
     expect(response.statusCode).toBe(422);
@@ -353,7 +391,10 @@ describe("Test shorten route", () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/shorten",
-      payload: { url: "https://example.com" },
+      payload: {
+        url: "https://example.com",
+        turnstileToken: "valid-token",
+      },
     });
 
     expect(response.statusCode).toBe(503);
@@ -367,6 +408,80 @@ describe("Test shorten route", () => {
     } else {
       delete process.env.SAFE_BROWSING_API_KEY;
     }
+  });
+
+  it("should reject with 400 when turnstileToken is missing", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/shorten",
+      payload: { url: "https://example.com" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = response.json();
+    expect(body.error).toBe("Validation failed");
+    expect(body.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: expect.arrayContaining(["turnstileToken"]),
+        }),
+      ]),
+    );
+  });
+
+  it("should return 403 when captcha verification fails", async () => {
+    vi.mocked(verifyTurnstile).mockResolvedValueOnce(false);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/shorten",
+      payload: {
+        url: "https://example.com",
+        turnstileToken: "invalid-token",
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: "Captcha verification failed",
+    });
+  });
+
+  it("should return 403 when captcha verification throws an error", async () => {
+    vi.mocked(verifyTurnstile).mockRejectedValueOnce(
+      new Error("Network timeout"),
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/shorten",
+      payload: {
+        url: "https://example.com",
+        turnstileToken: "some-token",
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: "Captcha verification failed",
+    });
+  });
+
+  it("should verify Turnstile before running Safe Browsing", async () => {
+    vi.mocked(verifyTurnstile).mockResolvedValueOnce(false);
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/shorten",
+      payload: {
+        url: "https://example.com",
+        turnstileToken: "invalid-token",
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 
