@@ -1,5 +1,7 @@
 import * as z from "zod";
 
+const DISALLOWED_HOSTS = ["s.unwreck.dev", "shortener.unwreck.dev"];
+
 export const LinkType = {
   Normal: "normal",
   Custom: "custom",
@@ -26,6 +28,19 @@ export const ShortenSchema = z.object({
       (val: string) => val.startsWith("http://") || val.startsWith("https://"),
       {
         message: "URL must use HTTP or HTTPS protocol",
+      },
+    )
+    .refine(
+      (val: string) => {
+        try {
+          const parsed = new URL(val);
+          return !DISALLOWED_HOSTS.includes(parsed.hostname.toLowerCase());
+        } catch {
+          return false;
+        }
+      },
+      {
+        message: "Cannot shorten URLs pointing to this service",
       },
     ),
   customCode: z

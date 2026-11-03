@@ -12,6 +12,7 @@ Part of the [unwreck.dev](https://unwreck.dev) project ecosystem.
 
 - [What it does](#what-it-does)
 - [Architecture](#architecture)
+- [Protections](#protections)
 - [Status](#status)
 - [Prerequisites](#prerequisites)
 - [Local Development Setup](#local-development-setup)
@@ -37,6 +38,14 @@ Two packages in this repo:
 
 - **Backend** (`url-shortener-backend`): Fastify, TypeScript, PostgreSQL, Drizzle ORM. Zod for request validation. Handles link generation, click logging, and the redirect routes.
 - **Frontend** (`url-shortener-frontend`): Vue 3 + Vite + TypeScript + Pinia, SCSS, styled with `@unwreck/core` design tokens.
+
+## Protections
+
+The shortener includes automated guards against abuse and malicious links:
+
+- **Google Safe Browsing Check:** URLs submitted for shortening are screened against the Google Safe Browsing Lookup API (v4) for malware, social engineering (phishing), and unwanted software. Flagged links are rejected with `422` (`{ "error": "This URL is flagged as unsafe" }`).
+- **Fail-Closed Security Behaviour:** If the Safe Browsing lookup times out (3-second deadline) or fails upstream, the API returns `503` (`{ "error": "Safety check unavailable, try again shortly" }`). The shortener fails closed rather than failing open: network timeouts or upstream service hiccups must never allow potentially dangerous URLs through. In non-production environments with no API key configured, the check logs a warning and is skipped for local convenience.
+- **Self-Host & Loop Prevention:** URLs targeting `s.unwreck.dev` or `shortener.unwreck.dev` are rejected with `400` during validation to prevent circular redirect chains and infrastructure spoofing.
 
 ## Status
 
@@ -171,11 +180,13 @@ Response:
 }
 ```
 
-| Status | Meaning                   |
-| ------ | ------------------------- |
-| `201`  | Link created              |
-| `400`  | Payload validation failed |
-| `409`  | Custom code already taken |
+| Status | Meaning                                      |
+| ------ | -------------------------------------------- |
+| `201`  | Link created                                 |
+| `400`  | Payload validation failed or self-host URL   |
+| `409`  | Custom code already taken                    |
+| `422`  | URL flagged as unsafe by Safe Browsing       |
+| `503`  | Safety check unavailable (fail-closed check) |
 
 ### `GET /:shortCode`
 

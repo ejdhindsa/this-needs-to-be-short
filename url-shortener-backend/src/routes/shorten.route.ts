@@ -6,6 +6,7 @@ import randomCodeGenerator from "../utils/randomCodeGenerator.js";
 import { LinkType } from "../validators/shorten.validator.js";
 import { toLinkResponse } from "../dto/link.dto.js";
 import { isUniqueViolation } from "../db/errors.js";
+import { isUrlSafe } from "../utils/safeBrowsing.js";
 
 const MaxRetries = {
   maxRetries: 5,
@@ -19,6 +20,37 @@ export async function shortenRoutes(fastify: FastifyInstance) {
         error: "Validation failed",
         issues: result.error.issues,
       });
+    }
+
+    const isProduction = process.env.NODE_ENV === "production";
+    let checkSafeBrowsing = true;
+
+    if (!process.env.SAFE_BROWSING_API_KEY) {
+      if (!isProduction) {
+        request.log.warn("Skipping Safe Browsing check: SAFE_BROWSING_API_KEY not configured");
+        checkSafeBrowsing = false;
+      } else {
+        request.log.error("Safe Browsing API key missing in production");
+        return reply
+          .status(503)
+          .send({ error: "Safety check unavailable, try again shortly" });
+      }
+    }
+
+    if (checkSafeBrowsing) {
+      try {
+        const isSafe = await isUrlSafe(result.data.url);
+        if (!isSafe) {
+          return reply
+            .status(422)
+            .send({ error: "This URL is flagged as unsafe" });
+        }
+      } catch (error) {
+        request.log.error(error);
+        return reply
+          .status(503)
+          .send({ error: "Safety check unavailable, try again shortly" });
+      }
     }
 
     if (result.data.customCode) {

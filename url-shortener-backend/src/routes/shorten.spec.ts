@@ -284,5 +284,89 @@ describe("Test shorten route", () => {
     expect(body).toHaveProperty("createdAt");
     expect(body).not.toHaveProperty("sid");
   });
+
+  it("should reject URLs pointing to s.unwreck.dev or shortener.unwreck.dev with 400", async () => {
+    const disallowedUrls = [
+      "https://s.unwreck.dev/abc",
+      "https://shortener.unwreck.dev/dashboard",
+    ];
+
+    for (const url of disallowedUrls) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/shorten",
+        payload: { url },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json();
+      expect(body.error).toBe("Validation failed");
+      expect(body.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            message: "Cannot shorten URLs pointing to this service",
+          }),
+        ]),
+      );
+    }
+  });
+
+  it("should return 422 when URL is flagged as unsafe by Safe Browsing", async () => {
+    const originalKey = process.env.SAFE_BROWSING_API_KEY;
+    process.env.SAFE_BROWSING_API_KEY = "test-api-key";
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        matches: [{ threatType: "MALWARE", platformType: "ANY_PLATFORM" }],
+      }),
+    } as unknown as Response);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/shorten",
+      payload: { url: "https://malware.testing.google.test" },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toEqual({
+      error: "This URL is flagged as unsafe",
+    });
+    expect(fetchSpy).toHaveBeenCalled();
+
+    if (originalKey !== undefined) {
+      process.env.SAFE_BROWSING_API_KEY = originalKey;
+    } else {
+      delete process.env.SAFE_BROWSING_API_KEY;
+    }
+  });
+
+  it("should return 503 when Safe Browsing check fails or times out (fail-closed)", async () => {
+    const originalKey = process.env.SAFE_BROWSING_API_KEY;
+    process.env.SAFE_BROWSING_API_KEY = "test-api-key";
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(
+      new DOMException("The operation was aborted", "TimeoutError"),
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/shorten",
+      payload: { url: "https://example.com" },
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual({
+      error: "Safety check unavailable, try again shortly",
+    });
+    expect(fetchSpy).toHaveBeenCalled();
+
+    if (originalKey !== undefined) {
+      process.env.SAFE_BROWSING_API_KEY = originalKey;
+    } else {
+      delete process.env.SAFE_BROWSING_API_KEY;
+    }
+  });
 });
 
