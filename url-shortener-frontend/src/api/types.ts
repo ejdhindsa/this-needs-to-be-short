@@ -1,6 +1,7 @@
 export interface ShortenRequest {
   url: string;
   customCode?: string;
+  turnstileToken: string;
 }
 
 export interface ShortenResponse {

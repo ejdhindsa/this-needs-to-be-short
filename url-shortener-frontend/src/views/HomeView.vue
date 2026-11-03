@@ -8,6 +8,7 @@ import {
   ChevronUp,
   Clipboard,
   X,
+  ShieldCheck,
 } from "@lucide/vue";
 import { useToast } from "../composables/useToast";
 import { useHistoryStore } from "../stores/historyStore";
@@ -16,6 +17,7 @@ import { normalizeUrl, isValidUrl } from "../utils/url";
 import ResultCard from "../components/ResultCard.vue";
 import ResponsiveModal from "../components/ResponsiveModal.vue";
 import HistoryList from "../components/HistoryList.vue";
+import TurnstileWidget from "../components/TurnstileWidget.vue";
 import type { ShortenResponse } from "../api/types";
 
 const originalURL = ref("");
@@ -23,6 +25,10 @@ const customCode = ref("");
 const showCustomInput = ref(false);
 const isLoading = ref(false);
 const shortenResult = ref<ShortenResponse>();
+const turnstileToken = ref("");
+const turnstileWidgetRef = ref<InstanceType<typeof TurnstileWidget> | null>(null);
+const pendingPayload = ref<{ url: string; customCode?: string } | null>(null);
+const isModalOpen = ref(false);
 
 const { successToast, infoToast, errorToast } = useToast();
 const historyStore = useHistoryStore();
@@ -48,7 +54,75 @@ const displayHost = (() => {
   }
 })();
 
-const handleSubmit = async () => {
+const handleTurnstileVerify = async (token: string) => {
+  if (isLoading.value || !pendingPayload.value) {
+    return;
+  }
+
+  turnstileToken.value = token;
+  isLoading.value = true;
+
+  try {
+    const result = await shortenURL({
+      url: pendingPayload.value.url,
+      customCode: pendingPayload.value.customCode,
+      turnstileToken: token,
+    });
+
+    shortenResult.value = result;
+    historyStore.addLink(result);
+
+    if (pendingPayload.value.customCode) {
+      successToast("See, custom is always better.");
+    } else {
+      successToast("Link Unwrecked! Much better.");
+    }
+
+    originalURL.value = "";
+    customCode.value = "";
+    showCustomInput.value = false;
+    pendingPayload.value = null;
+  } catch (error) {
+    isModalOpen.value = false;
+    pendingPayload.value = null;
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 400) {
+        const issueMsg =
+          error.response.data?.issues?.[0]?.message ||
+          error.response.data?.error ||
+          "Validation failed";
+        errorToast(issueMsg);
+      } else if (error.response?.status === 403) {
+        errorToast(error.response.data?.error || "Captcha verification failed");
+      } else if (error.response?.status === 409) {
+        errorToast("No, not this one. She's taken.");
+      } else if (error.response?.status === 429) {
+        errorToast("Slow down, try again in a minute");
+      } else if (!error.response || error.code === "ERR_NETWORK") {
+        errorToast("The network took a nap. Check your connection!");
+      } else {
+        errorToast("I am as clueless as you are, maybe try again?");
+      }
+    } else {
+      errorToast("I am as clueless as you are, maybe try again?");
+    }
+  } finally {
+    isLoading.value = false;
+    turnstileToken.value = "";
+  }
+};
+
+const handleTurnstileExpire = () => {
+  turnstileToken.value = "";
+  turnstileWidgetRef.value?.reset();
+};
+
+const handleTurnstileError = () => {
+  turnstileToken.value = "";
+  errorToast("Captcha verification encountered an issue. Please try again.");
+};
+
+const handleSubmit = () => {
   const rawUrl = originalURL.value.trim();
   if (!rawUrl) {
     errorToast("Are you sure you have entered something?");
@@ -84,51 +158,22 @@ const handleSubmit = async () => {
     }
   }
 
-  isLoading.value = true;
+  pendingPayload.value = {
+    url: normalizedUrl,
+    customCode: showCustomInput.value && trimmedCode ? trimmedCode : undefined,
+  };
 
-  try {
-    shortenResult.value = await shortenURL({
-      url: normalizedUrl,
-      customCode:
-        showCustomInput.value && trimmedCode ? trimmedCode : undefined,
-    });
+  shortenResult.value = undefined;
+  turnstileToken.value = "";
+  isModalOpen.value = true;
+};
 
-    historyStore.addLink(shortenResult.value);
-
-    if (trimmedCode) {
-      successToast("See, custom is always better.");
-    } else {
-      successToast("Link Unwrecked! Much better.");
-    }
-
-    isResultCardOpen.value = true;
-
-    originalURL.value = "";
-    customCode.value = "";
-    showCustomInput.value = false;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 400) {
-        const issueMsg =
-          error.response.data?.issues?.[0]?.message ||
-          error.response.data?.error ||
-          "Validation failed";
-        errorToast(issueMsg);
-      } else if (error.response?.status === 409) {
-        errorToast("No, not this one. She's taken.");
-      } else if (error.response?.status === 429) {
-        errorToast("Slow down, try again in a minute");
-      } else if (!error.response || error.code === "ERR_NETWORK") {
-        errorToast("The network took a nap. Check your connection!");
-      } else {
-        errorToast("I am as clueless as you are, maybe try again?");
-      }
-    } else {
-      errorToast("I am as clueless as you are, maybe try again?");
-    }
-  } finally {
-    isLoading.value = false;
-  }
+const handleCloseModal = () => {
+  isModalOpen.value = false;
+  shortenResult.value = undefined;
+  pendingPayload.value = null;
+  isLoading.value = false;
+  turnstileToken.value = "";
 };
 
 //TODO: Maybe take this function out and make it its own composable
@@ -154,12 +199,6 @@ const handleClear = () => {
 // later when the need arises
 const formatCustomCode = () => {
   customCode.value = customCode.value.replace(/\s+/g, "-");
-};
-
-const isResultCardOpen = ref(false);
-
-const toggleResultCardOpen = () => {
-  isResultCardOpen.value = !isResultCardOpen.value;
 };
 </script>
 
@@ -242,13 +281,64 @@ const toggleResultCardOpen = () => {
   <div class="linkHistory">
     <HistoryList />
   </div>
-  <ResponsiveModal :isOpen="isResultCardOpen" @close="toggleResultCardOpen">
-    <ResultCard
-      v-if="shortenResult"
-      :originalURL="shortenResult.originalURL"
-      :shortCode="shortenResult.shortCode"
-      @close="toggleResultCardOpen"
-    />
+  <ResponsiveModal
+    :isOpen="isModalOpen"
+    :size="shortenResult ? 'default' : 'compact'"
+    @close="handleCloseModal"
+  >
+    <Transition name="fade-switch" mode="out-in">
+      <ResultCard
+        v-if="shortenResult"
+        key="result"
+        :originalURL="shortenResult.originalURL"
+        :shortCode="shortenResult.shortCode"
+        @close="handleCloseModal"
+      />
+      <div v-else key="verify" class="verificationModal">
+        <div class="verificationHeader">
+          <div class="headerTopRow">
+            <div class="modalIconBadge">
+              <Loader2 v-if="isLoading" :size="20" class="spinnerIcon" />
+              <ShieldCheck v-else :size="20" />
+            </div>
+            <button
+              type="button"
+              class="modalCloseBtn"
+              title="Cancel"
+              aria-label="Cancel"
+              @click="handleCloseModal"
+            >
+              <X :size="16" />
+            </button>
+          </div>
+          <h2 class="verificationTitle">
+            {{ isLoading ? "Shortening Link..." : "Security Verification" }}
+          </h2>
+          <p class="verificationSubtitle">
+            {{
+              isLoading
+                ? "Generating your shortened URL and QR code..."
+                : "Please complete the verification below to proceed."
+            }}
+          </p>
+        </div>
+
+        <div v-show="!isLoading" class="turnstileModalWrapper">
+          <TurnstileWidget
+            ref="turnstileWidgetRef"
+            @verify="handleTurnstileVerify"
+            @expire="handleTurnstileExpire"
+            @error="handleTurnstileError"
+          />
+        </div>
+
+        <div v-if="isLoading" class="verificationLoading">
+          <div class="loadingBarTrack">
+            <div class="loadingBarProgress"></div>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </ResponsiveModal>
 </template>
 
@@ -534,6 +624,140 @@ const toggleResultCardOpen = () => {
   &::placeholder {
     color: var(--uw-fg-subtle);
     font-family: var(--uw-font-sans, inherit);
+  }
+}
+
+.fade-switch-enter-active,
+.fade-switch-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fade-switch-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.fade-switch-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.verificationModal {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.verificationHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  text-align: left;
+}
+
+.headerTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.modalIconBadge {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--uw-radius-sm);
+  background: var(--uw-bg-subtle);
+  border: 1px solid var(--uw-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--uw-brand-solid);
+}
+
+.modalCloseBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--uw-radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--uw-fg-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: var(--uw-bg-subtle);
+    color: var(--uw-fg-default);
+  }
+}
+
+.verificationTitle {
+  font-family: var(--uw-font-display, sans-serif);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--uw-fg-heading);
+  margin: 0;
+}
+
+.verificationSubtitle {
+  font-size: 0.8125rem;
+  color: var(--uw-fg-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.turnstileModalWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 65px;
+}
+
+.verificationLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 0 0.5rem;
+  width: 100%;
+}
+
+.loadingBarTrack {
+  width: 100%;
+  height: 4px;
+  background: var(--uw-bg-subtle);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.loadingBarProgress {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  background: var(--uw-brand-solid);
+  border-radius: 999px;
+  animation: indeterminateBar 1.2s infinite ease-in-out;
+}
+
+@keyframes indeterminateBar {
+  0% {
+    left: -40%;
+    width: 40%;
+  }
+  50% {
+    left: 30%;
+    width: 50%;
+  }
+  100% {
+    left: 100%;
+    width: 40%;
   }
 }
 </style>

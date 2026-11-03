@@ -67,6 +67,7 @@ onUnmounted(() => {
   border: 1px solid var(--uw-border-subtle);
   border-radius: 10px;
   padding: 1.5rem;
+  transition: max-width 0.25s ease;
 
   &.isCompact {
     max-width: min(24rem, calc(100vw - 2rem));
