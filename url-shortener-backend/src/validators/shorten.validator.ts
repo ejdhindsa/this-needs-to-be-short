@@ -61,6 +61,7 @@ export const ShortenSchema = z.object({
       },
     )
     .optional(),
+  turnstileToken: z.string().min(1, "Please complete the captcha"),
 });
 
 export type Shorten = z.infer<typeof ShortenSchema>;

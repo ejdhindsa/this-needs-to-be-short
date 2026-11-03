@@ -7,6 +7,7 @@ import { LinkType } from "../validators/shorten.validator.js";
 import { toLinkResponse } from "../dto/link.dto.js";
 import { isUniqueViolation } from "../db/errors.js";
 import { isUrlSafe } from "../utils/safeBrowsing.js";
+import { verifyTurnstile } from "../utils/turnstile.js";
 
 const MaxRetries = {
   maxRetries: 5,
@@ -23,11 +24,49 @@ export async function shortenRoutes(fastify: FastifyInstance) {
     }
 
     const isProduction = process.env.NODE_ENV === "production";
+
+    let checkTurnstile = true;
+
+    if (!process.env.TURNSTILE_SECRET_KEY) {
+      if (!isProduction) {
+        request.log.warn(
+          "Skipping Turnstile Check: TURNSTILE_SECRET_KEY not configured",
+        );
+        checkTurnstile = false;
+      } else {
+        request.log.error("Turnstile Secret Key is missing in production");
+        return reply.status(503).send({ error: "Captcha service unavailable" });
+      }
+    }
+
+    if (checkTurnstile) {
+      try {
+        const isHuman = await verifyTurnstile(
+          result.data.turnstileToken,
+          request.ip,
+        );
+        if (!isHuman) {
+          return reply
+            .status(403)
+            .send({ error: "Captcha verification failed" });
+        }
+      } catch (error) {
+        request.log.error(
+          `An error occurred while turnstile verification: ${error}`,
+        );
+        return reply
+          .status(403)
+          .send({ error: "Captcha verification failed" });
+      }
+    }
+
     let checkSafeBrowsing = true;
 
     if (!process.env.SAFE_BROWSING_API_KEY) {
       if (!isProduction) {
-        request.log.warn("Skipping Safe Browsing check: SAFE_BROWSING_API_KEY not configured");
+        request.log.warn(
+          "Skipping Safe Browsing check: SAFE_BROWSING_API_KEY not configured",
+        );
         checkSafeBrowsing = false;
       } else {
         request.log.error("Safe Browsing API key missing in production");
