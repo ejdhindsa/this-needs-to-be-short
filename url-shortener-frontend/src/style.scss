@@ -19,3 +19,11 @@ body {
     animation: none;
   }
 }
+
+@media (max-width: 40rem) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
