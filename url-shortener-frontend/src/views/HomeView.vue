@@ -438,13 +438,14 @@ const formatCustomCode = () => {
   border: 2px solid var(--uw-border-default);
   border-radius: var(--uw-radius-md);
   color: var(--uw-fg-default);
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-family: var(--uw-font-sans, inherit);
   outline: none;
   transition: border-color 0.2s ease;
 
   @media (min-width: 40rem) {
     padding: 0.875rem 5rem 0.875rem 3.25rem;
+    font-size: 0.875rem;
   }
 
   &:focus {
@@ -614,8 +615,12 @@ const formatCustomCode = () => {
   background: transparent;
   padding: 0.25rem 0;
   color: var(--uw-fg-default);
-  font-size: 0.8125rem;
+  font-size: 1rem;
   font-family: var(--uw-font-mono, monospace);
+
+  @media (min-width: 40rem) {
+    font-size: 0.8125rem;
+  }
 
   &:focus {
     outline: none;

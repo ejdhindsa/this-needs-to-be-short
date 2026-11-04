@@ -40,20 +40,29 @@ const { toasts, removeToast } = useToast();
 <style scoped lang="scss">
 .toastContainer {
   position: fixed;
-  bottom: var(--uw-space-16);
-  left: 0;
-  right: 0;
+  left: 1rem;
+  right: 1rem;
   margin-inline: auto;
   z-index: var(--uw-z-toast);
   pointer-events: none;
   max-width: calc(100vw - var(--uw-space-8));
-  width: 24rem;
+  width: min(24rem, 100%);
+  bottom: max(var(--uw-space-4), env(safe-area-inset-bottom, 1rem));
+
+  @media (max-width: 40rem) {
+    top: max(var(--uw-space-4), env(safe-area-inset-top, 1rem));
+    bottom: auto;
+  }
 }
 
 .toastList {
   display: flex;
   flex-direction: column-reverse;
   gap: var(--uw-space-2);
+
+  @media (max-width: 40rem) {
+    flex-direction: column;
+  }
 }
 
 .toastCard {
