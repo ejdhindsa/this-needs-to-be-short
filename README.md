@@ -4,7 +4,7 @@
 
 A clean, self-hosted URL shortener with custom slug creation and click analytics: no ads, no account required, no subscription to set a custom alias.
 
-**Live:** <https://shortener.unwreck.dev>
+**Live:** <https://shortener.unwreck.dev> · **API:** <https://s.unwreck.dev/api/ping>
 
 Part of the [unwreck.dev](https://unwreck.dev) project ecosystem.
 
@@ -12,6 +12,7 @@ Part of the [unwreck.dev](https://unwreck.dev) project ecosystem.
 
 - [What it does](#what-it-does)
 - [Architecture](#architecture)
+- [Design Decisions](#design-decisions)
 - [Deployment & Rollback](#deployment--rollback)
 - [Protections](#protections)
 - [Status](#status)
@@ -31,7 +32,7 @@ Part of the [unwreck.dev](https://unwreck.dev) project ecosystem.
 - QR codes are generated client-side, with a one-click PNG download.
 - No accounts, no login: link history lives in the browser via local storage.
 - Light and dark themes, built from `@unwreck/core` design tokens and the View Transitions API.
-- Basic rate limiting on the API to keep it from being abused.
+- Rate limiting on the API (50 requests/minute) with true client IP preservation to keep abuse at bay.
 
 ## Architecture
 
@@ -42,10 +43,61 @@ Two packages in this repo:
 
 ### Request Flow & Infrastructure
 
-- **Frontend UI (`shortener.unwreck.dev`):** Static SPA hosted on Cloudflare Pages.
-- **API & Redirects (`s.unwreck.dev`):** Proxied by Cloudflare to the VPS running Caddy on the host's `edge` Docker network.
-- **Reverse Proxy (Caddy):** Terminates reverse proxy routing and forwards `s.unwreck.dev` requests directly to `shortener_app:3000`.
-- **Database:** Internal PostgreSQL 16 container (`shortener_db`) connected via Docker Compose network.
+```mermaid
+---
+config:
+  theme: base
+  sequence:
+    mirrorActors: false
+    actorMargin: 40
+    width: 190
+    height: 64
+    boxMargin: 14
+    boxTextMargin: 8
+    noteMargin: 16
+    messageMargin: 48
+    messageAlign: center
+    diagramMarginX: 30
+    diagramMarginY: 20
+---
+sequenceDiagram
+    autonumber
+    actor User as Visitor / Client
+    participant Pages as Cloudflare Pages<br/>(shortener.unwreck.dev)
+    participant CF as Cloudflare Edge<br/>(s.unwreck.dev)
+    participant Caddy as Caddy Proxy<br/>(VPS)
+    participant App as Fastify Backend<br/>(shortener_app:3000)
+    participant DB as PostgreSQL 16<br/>(shortener_db)
+
+    rect rgba(100, 150, 255, 0.08)
+        Note over User,Pages: 1. Creating a Short Link
+        User->>Pages: Load UI
+        Pages-->>User: Serve Vue 3 SPA + Turnstile widget
+        User->>CF: POST /api/shorten (URL + turnstileToken)
+        CF->>Caddy: Forward request (HTTP :80)
+        Caddy->>App: Reverse proxy (Docker edge network)
+        App->>App: Validate Turnstile + Safe Browsing
+        App->>DB: Insert slug + original URL
+        DB-->>App: Confirm insert
+        App-->>User: 201 Created { shortCode, originalURL }
+    end
+
+    rect rgba(100, 200, 140, 0.08)
+        Note over User,DB: 2. Resolving a Short Link
+        User->>CF: GET /:shortCode
+        CF->>Caddy: Forward request (HTTP :80)
+        Caddy->>App: Reverse proxy (Docker edge network)
+        App->>DB: Query target link + log click referrer
+        DB-->>App: Return destination URL
+        App-->>User: 302 Found (Location: destination URL)
+    end
+```
+
+## Design Decisions
+
+- **302 over 301 redirects:** 301 redirects get cached permanently by browsers and intermediate CDNs, which means repeat visitors never hit the server again; 302 forces each click to reach the backend so click counts and referrers are faithfully logged.
+- **Fail-closed security:** If Google Safe Browsing times out or acts up, the API throws `503` and refuses to create the link—failing open might let malware or phishing past the gate just to keep the endpoint "available".
+- **localStorage over accounts:** Link history belongs to the person who made it, right on their machine; skipping user accounts means no passwords, no email verification spam, and zero credentials in a database that could ever be breached.
 
 ## Deployment & Rollback
 
@@ -55,7 +107,7 @@ Production deployments are automated via GitHub Actions on every merge to `main`
 
 1. **Test & Validation:** GitHub Actions runs backend tests with PostgreSQL service containers, executes frontend type checks and builds, and runs `typos`.
 2. **Build & Publish:** The `deploy` job builds a production image using Docker Buildx, injects the Git commit SHA (`GIT_SHA=${{ github.sha }}`), and pushes tagged images (`:${{ github.sha }}` and `:latest`) to the GitHub Container Registry (`ghcr.io/ejdhindsa/shortener-backend`).
-3. **SSH Deployment:** CI connects via SSH to the VPS on port <port> using an ed25519 key restricted to a single forced command (`/usr/local/bin/deploy-shortener`).
+3. **SSH Deployment:** CI connects via SSH to the VPS on port 1313 using an ed25519 key restricted to a single forced command (`/usr/local/bin/deploy-shortener`).
 4. **Zero-Git VPS Execution:** The deployment script pulls the specific commit tag from GHCR, updates the container (`docker compose up -d shortener`), and cleans up old images older than 7 days (`168h`).
 5. **Health Verification:** CI polls `https://s.unwreck.dev/api/ping` until the response version matches the deployed commit SHA.
 
@@ -64,7 +116,7 @@ Production deployments are automated via GitHub Actions on every merge to `main`
 If a release ever needs to be rolled back immediately without waiting for a git revert, trigger a deploy with the desired previous 40-character commit SHA:
 
 ```bash
-ssh -p <port> deploy@<host> <older-sha>
+ssh -p 1313 deploy@<host> <older-sha>
 ```
 
 The server script validates the SHA format, pulls that specific container tag from GHCR, and restarts `shortener_app` without modifying git on the host.
@@ -73,14 +125,18 @@ The server script validates the SHA format, pulls that specific container tag fr
 
 The shortener includes automated guards against abuse and malicious links:
 
+- **Cloudflare Turnstile Verification:** Protects link creation against bots and scripted floods using Turnstile challenge tokens validated server-side.
+- **Rate Limiting with Proxy Trust:** Globally capped at 50 requests per minute with exponential backoff via `@fastify/rate-limit`. Fastify has `trustProxy: true` enabled, correctly pulling visitor IPs from `CF-Connecting-IP` / `X-Forwarded-For` across Cloudflare and Caddy so rate limiting throttles individual visitors, not the reverse proxy.
 - **Google Safe Browsing Check:** URLs submitted for shortening are screened against the Google Safe Browsing Lookup API (v4) for malware, social engineering (phishing), and unwanted software. Flagged links are rejected with `422` (`{ "error": "This URL is flagged as unsafe" }`).
 - **Fail-Closed Security Behaviour:** If the Safe Browsing lookup times out (3-second deadline) or fails upstream, the API returns `503` (`{ "error": "Safety check unavailable, try again shortly" }`). The shortener fails closed rather than failing open: network timeouts or upstream service hiccups must never allow potentially dangerous URLs through. In non-production environments with no API key configured, the check logs a warning and is skipped for local convenience.
 - **Self-Host & Loop Prevention:** URLs targeting `s.unwreck.dev` or `shortener.unwreck.dev` are rejected with `400` during validation to prevent circular redirect chains and infrastructure spoofing.
 
 ## Status
 
-- ✅ Backend: done (collision retry, rate limiting, analytics endpoint).
-- 🚧 Frontend: in progress (dashboard for the analytics endpoint isn't built yet).
+- ✅ **Backend:** live on VPS behind Caddy via automated GHCR CI/CD (`https://s.unwreck.dev/api/ping`).
+- ✅ **Frontend:** live on Cloudflare Pages (`https://shortener.unwreck.dev`).
+- ✅ **Protections:** Safe Browsing, Turnstile bot checks, proxy-aware rate limiting, fail-closed handling.
+- 🚧 **Analytics Dashboard:** UI in progress (backend paginated API is complete and tested).
 
 ## Prerequisites
 
@@ -190,12 +246,14 @@ API errors follow a consistent response shape:
 ```json
 {
   "url": "https://example.com",
-  "customCode": "my-alias"
+  "customCode": "my-alias",
+  "turnstileToken": "0.xxxx..."
 }
 ```
 
 - `url` (string, required): valid HTTP/HTTPS address.
 - `customCode` (string, optional): 3 to 32 characters, letters/numbers/underscores/hyphens (`[a-zA-Z0-9_-]`). Cannot match reserved aliases (case-insensitive).
+- `turnstileToken` (string, optional in local dev; required in production): Cloudflare Turnstile token verified server-side.
 - **Reserved aliases:** `api`, `ping`, `shorten`, `analytics`, `health`, `admin`, `static`, `assets`.
 
 Response:
@@ -209,13 +267,15 @@ Response:
 }
 ```
 
-| Status | Meaning                                      |
-| ------ | -------------------------------------------- |
-| `201`  | Link created                                 |
-| `400`  | Payload validation failed or self-host URL   |
-| `409`  | Custom code already taken                    |
-| `422`  | URL flagged as unsafe by Safe Browsing       |
-| `503`  | Safety check unavailable (fail-closed check) |
+| Status | Meaning                                                       |
+| ------ | ------------------------------------------------------------- |
+| `201`  | Link created                                                  |
+| `400`  | Payload validation failed or self-host URL                    |
+| `403`  | Turnstile verification failed (invalid or expired token)      |
+| `409`  | Custom code already taken                                     |
+| `422`  | URL flagged as unsafe by Safe Browsing                        |
+| `429`  | Rate limit exceeded (capped at 50 requests/min per client IP) |
+| `503`  | Safety check or Turnstile unavailable (fail-closed guard)     |
 
 ### `GET /:shortCode`
 
