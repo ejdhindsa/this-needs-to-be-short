@@ -14,6 +14,8 @@ RUN pnpm build
 FROM node:22-alpine AS runner
 LABEL org.opencontainers.image.source="https://github.com/ejdhindsa/this-needs-to-be-short"
 WORKDIR /app
+ARG GIT_SHA=dev
+ENV GIT_SHA=$GIT_SHA
 ENV NODE_ENV=production
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 COPY --from=prod-deps /app/node_modules ./node_modules

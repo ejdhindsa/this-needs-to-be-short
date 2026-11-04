@@ -12,6 +12,7 @@ Part of the [unwreck.dev](https://unwreck.dev) project ecosystem.
 
 - [What it does](#what-it-does)
 - [Architecture](#architecture)
+- [Deployment & Rollback](#deployment--rollback)
 - [Protections](#protections)
 - [Status](#status)
 - [Prerequisites](#prerequisites)
@@ -38,6 +39,35 @@ Two packages in this repo:
 
 - **Backend** (`url-shortener-backend`): Fastify, TypeScript, PostgreSQL, Drizzle ORM. Zod for request validation. Handles link generation, click logging, and the redirect routes.
 - **Frontend** (`url-shortener-frontend`): Vue 3 + Vite + TypeScript + Pinia, SCSS, styled with `@unwreck/core` design tokens.
+
+### Request Flow & Infrastructure
+
+- **Frontend UI (`shortener.unwreck.dev`):** Static SPA hosted on Cloudflare Pages.
+- **API & Redirects (`s.unwreck.dev`):** Proxied by Cloudflare to the VPS running Caddy on the host's `edge` Docker network.
+- **Reverse Proxy (Caddy):** Terminates reverse proxy routing and forwards `s.unwreck.dev` requests directly to `shortener_app:3000`.
+- **Database:** Internal PostgreSQL 16 container (`shortener_db`) connected via Docker Compose network.
+
+## Deployment & Rollback
+
+### Automated CI/CD Pipeline
+
+Production deployments are automated via GitHub Actions on every merge to `main`:
+
+1. **Test & Validation:** GitHub Actions runs backend tests with PostgreSQL service containers, executes frontend type checks and builds, and runs `typos`.
+2. **Build & Publish:** The `deploy` job builds a production image using Docker Buildx, injects the Git commit SHA (`GIT_SHA=${{ github.sha }}`), and pushes tagged images (`:${{ github.sha }}` and `:latest`) to the GitHub Container Registry (`ghcr.io/ejdhindsa/shortener-backend`).
+3. **SSH Deployment:** CI connects via SSH to the VPS on port <port> using an ed25519 key restricted to a single forced command (`/usr/local/bin/deploy-shortener`).
+4. **Zero-Git VPS Execution:** The deployment script pulls the specific commit tag from GHCR, updates the container (`docker compose up -d shortener`), and cleans up old images older than 7 days (`168h`).
+5. **Health Verification:** CI polls `https://s.unwreck.dev/api/ping` until the response version matches the deployed commit SHA.
+
+### Manual Rollback
+
+If a release ever needs to be rolled back immediately without waiting for a git revert, trigger a deploy with the desired previous 40-character commit SHA:
+
+```bash
+ssh -p <port> deploy@<host> <older-sha>
+```
+
+The server script validates the SHA format, pulls that specific container tag from GHCR, and restarts `shortener_app` without modifying git on the host.
 
 ## Protections
 
@@ -104,7 +134,6 @@ Migrations run automatically at startup before the server accepts traffic. The s
 
 - **Day-to-day workflow:** edit schema definitions in `src/db/schema/`, run `pnpm db:generate` to generate a versioned migration in `./drizzle`, and commit the generated files.
 - **Local prototyping shortcut:** `pnpm db:push` is available to prototype schema tweaks directly against a local database without generating a migration.
-
 
 ### 3. Frontend
 
